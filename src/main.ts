@@ -5,6 +5,8 @@ import { AppConfig } from './config/app-config';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  // Runs onModuleDestroy (e.g. Prisma disconnect) on SIGTERM/SIGINT.
+  app.enableShutdownHooks();
   await app.listen(app.get(AppConfig).port);
 }
 

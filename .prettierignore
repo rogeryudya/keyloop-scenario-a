@@ -6,3 +6,5 @@ pnpm-lock.yaml
 *.md
 # Seed data is hand-laid out one row per line for readability.
 prisma/seed/data.json
+# Generated Prisma client
+src/generated/

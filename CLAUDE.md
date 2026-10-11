@@ -19,7 +19,9 @@ pnpm install              # install deps
 docker compose up -d      # dev deps (M0–M3: postgres only; M4: floci, otel-lgtm, wiremock)
 docker compose --profile app up --build   # full stack in Docker (reviewer mode)
 pnpm infra:up             # Terraform (in Docker) → RDS + DB secrets in floci (idempotent)
-pnpm db:migrate           # resolve secret → prisma migrate
+pnpm db:migrate           # prisma migrate deploy (M4: resolves DB secret first)
+pnpm db:migrate:dev       # create a new migration (prisma migrate dev --name <change>)
+pnpm db:seed              # load prisma/seed/data.json (M1)
 pnpm start:dev            # run API with watch
 pnpm test                 # unit tests (no Docker)
 pnpm test:int             # integration (Testcontainers, needs Docker)

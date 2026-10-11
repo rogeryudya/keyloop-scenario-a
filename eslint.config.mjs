@@ -7,7 +7,14 @@ import { boundariesConfig } from './eslint.boundaries.mjs';
 
 export default tseslint.config(
   {
-    ignores: ['dist/', 'coverage/', 'node_modules/', 'eslint.config.mjs', 'eslint.boundaries.mjs'],
+    ignores: [
+      'dist/',
+      'coverage/',
+      'node_modules/',
+      'src/generated/',
+      'eslint.config.mjs',
+      'eslint.boundaries.mjs',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

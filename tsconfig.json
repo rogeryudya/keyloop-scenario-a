@@ -20,5 +20,5 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*", "test/**/*", "prisma/**/*.ts", "prisma.config.ts"]
 }

@@ -22,6 +22,8 @@ const elements = [
   })),
   { type: 'config', pattern: 'src/config' },
   { type: 'health', pattern: 'src/health' },
+  // Generated Prisma client (`prisma generate`). Importable from infrastructure only.
+  { type: 'prisma-client', pattern: 'src/generated/prisma' },
   { type: 'test-support', pattern: 'test' },
 ];
 
@@ -70,6 +72,7 @@ const policies = [
           'shared-application',
           'shared-infrastructure',
           'config',
+          'prisma-client',
         ),
       ],
     },
@@ -99,7 +102,15 @@ const policies = [
   },
   {
     from: { element: { type: 'shared-infrastructure' } },
-    allow: { to: anyOf('shared-domain', 'shared-application', 'shared-infrastructure', 'config') },
+    allow: {
+      to: anyOf(
+        'shared-domain',
+        'shared-application',
+        'shared-infrastructure',
+        'config',
+        'prisma-client',
+      ),
+    },
   },
   // The exception filter maps DomainError → HTTP, so shared presentation may see shared domain errors.
   {

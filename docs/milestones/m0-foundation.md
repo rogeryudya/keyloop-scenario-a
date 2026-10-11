@@ -11,7 +11,7 @@
 - [x] Boundary lint (eslint-plugin-boundaries or dependency-cruiser) enforcing the layer rules; a deliberate violation fails lint
 - [x] Config module: env validated at startup; `.env.example`. `DbCredentialsProvider` in `DATABASE_URL` mode only (Secrets Manager mode comes in M4)
 - [x] Temporary dev DB: `postgres` service in `docker-compose.yml` (same major version as RDS); replaced by floci in M4
-- [ ] Prisma installed and connected; empty initial migration; scripts `db:migrate`, `db:seed`
+- [x] Prisma installed and connected; empty initial migration; scripts `db:migrate`, `db:seed`
 - [ ] Folder skeleton per `docs/architecture/folder-structure.md`: `shared/`, `modules/dealerships`, `modules/customers`, `modules/appointments`; `@nestjs/cqrs` installed
 - [ ] Shared building blocks: `DomainError` hierarchy, `Clock` port + `SystemClock`, cursor pagination types
 - [ ] Transactions: `@nestjs-cls/transactional` + Prisma adapter wired
@@ -42,3 +42,13 @@
 - A minimal Jest `unit` project was pulled forward from the test-infra task so config could ship with tests (`jest.config.js`, `setupFiles: reflect-metadata`, `types: ["node","jest"]` in tsconfig, `["node"]` in the build tsconfig). The test-infra task adds the `int`/`e2e` projects and other scripts.
 - Postgres major version: **17** (`postgres:17-alpine`). The docs didn't name one, so this is the pick. M4's RDS `engine_version` (floci) and the Testcontainers image must use the same major version.
 - Dev DB: `docker compose up -d` starts only `postgres` on :5432 (`keyloop`/`keyloop`, volume `postgres-data`), matching `.env.example`. Reset with `docker compose down -v`. M4 removes it.
+- Prisma **7.10**:
+  - **Config:** `prisma.config.ts` (loads `.env` itself; M4 swaps this for `with-db-url`).
+  - **Client:** `prisma-client` generator with `moduleFormat = "cjs"` writes TypeScript to `src/generated/prisma`. It's gitignored, and `postinstall` regenerates it. ESLint and Prettier skip it. Boundary lint lets only `infrastructure` and `shared/infrastructure` import it.
+  - **Driver adapter:** `@prisma/adapter-pg` is required in Prisma 7. `PrismaService` takes the URL from `DbCredentialsProvider` and never reads env vars itself.
+  - **Gotcha:** with driver adapters, `$connect()` is lazy, so a down DB didn't fail the boot. `PrismaModule` runs `SELECT 1` at startup (pool timeout 5 s); verified that the DB down gives exit 1 and the error output contains no URL or password.
+- Scripts:
+  - `db:migrate` = `prisma migrate deploy` (non-interactive, idempotent).
+  - `db:migrate:dev` creates new migrations.
+  - `db:seed` = `prisma db seed` → `node prisma/seed.ts`, a no-op until M1. **M1:** Node's type stripping can't import the generated client (extensionless TS imports), so the real seed probably needs a runner such as `tsx`, or a compiled script.
+- **TODO in the test-infra task:** an int test for `PrismaModule` (connects against Testcontainers; boot fails on a bad URL). The health e2e will also cover the DB path.
