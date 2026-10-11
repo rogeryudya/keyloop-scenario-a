@@ -8,7 +8,7 @@ Interview assignment: a backend service that reviewers must be able to run and r
 so structure and conventions need to be explicit and predictable.
 
 ## Decision
-Node 22 LTS, TypeScript strict, NestJS, PostgreSQL with Prisma, Jest + Supertest, ESLint + Prettier, pnpm, Docker Compose.
+Node 24 LTS, TypeScript strict, NestJS, PostgreSQL with Prisma, Jest + Supertest, ESLint + Prettier, pnpm, Docker Compose.
 
 ## Alternatives considered
 - Express/Fastify alone — less boilerplate, but no enforced module/DI structure; AI output drifts more.

@@ -8,7 +8,7 @@ source of truth: **read [docs/requirements.md](docs/requirements.md) before desi
 Progress index: [docs/milestones/README.md](docs/milestones/README.md) — read it, then open only the current milestone file.
 
 ## Stack
-Node 22 LTS · TypeScript (strict) · NestJS · Clean Architecture + CQRS (`@nestjs/cqrs`) · PostgreSQL + Prisma · Jest + Supertest · ESLint + Prettier ·
+Node 24 LTS · TypeScript (strict) · NestJS · Clean Architecture + CQRS (`@nestjs/cqrs`) · PostgreSQL + Prisma · Jest + Supertest · ESLint + Prettier ·
 pnpm · Terraform (infra) · Local env: Docker Compose with floci (RDS + Secrets Manager), Grafana LGTM (OTel), WireMock · Tests: Testcontainers. Rationale: [docs/decisions/0001-tech-stack.md](docs/decisions/0001-tech-stack.md).
 
 ## Commands
@@ -26,6 +26,7 @@ pnpm test:int             # integration (Testcontainers, needs Docker)
 pnpm test:e2e             # API e2e (Testcontainers + WireMock)
 pnpm lint                 # eslint (incl. layer boundaries)
 pnpm typecheck            # tsc --noEmit
+pnpm format               # prettier --write (format:check in CI)
 ```
 
 ## Hard rules

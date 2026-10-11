@@ -1,0 +1,8 @@
+dist/
+coverage/
+node_modules/
+pnpm-lock.yaml
+# Docs are hand-formatted Markdown (wide tables); Prettier covers code and config only.
+*.md
+# Seed data is hand-laid out one row per line for readability.
+prisma/seed/data.json
