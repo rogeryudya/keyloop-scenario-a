@@ -41,4 +41,6 @@ export default tseslint.config(
     },
   },
   ...boundariesConfig,
+  // Plain JS config files are outside tsconfig; lint them without type information.
+  { files: ['**/*.js', '**/*.mjs'], ...tseslint.configs.disableTypeChecked },
 );

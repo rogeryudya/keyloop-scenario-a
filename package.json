@@ -15,12 +15,15 @@
     "lint": "eslint .",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --experimental-vm-modules --disable-warning=ExperimentalWarning node_modules/jest/bin/jest.js --selectProjects unit"
   },
   "dependencies": {
     "@nestjs/common": "^12.1.2",
     "@nestjs/core": "^12.1.2",
     "@nestjs/platform-express": "^12.1.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
@@ -28,13 +31,16 @@
     "@eslint/js": "^10.0.1",
     "@nestjs/cli": "^12.0.8",
     "@nestjs/schematics": "^12.0.6",
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.19.2",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-boundaries": "^7.2.0",
     "globals": "^17.13.0",
+    "jest": "^30.5.2",
     "prettier": "^3.9.10",
+    "ts-jest": "^29.4.14",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.1"
   }

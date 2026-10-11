@@ -3,7 +3,7 @@
     "module": "commonjs",
     "target": "ES2023",
     "lib": ["ES2023"],
-    "types": ["node"],
+    "types": ["node", "jest"],
     "declaration": false,
     "removeComments": true,
     "emitDecoratorMetadata": true,
