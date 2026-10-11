@@ -13,7 +13,7 @@
 - [x] Temporary dev DB: `postgres` service in `docker-compose.yml` (same major version as RDS); replaced by floci in M4
 - [x] Prisma installed and connected; empty initial migration; scripts `db:migrate`, `db:seed`
 - [x] Folder skeleton per `docs/architecture/folder-structure.md`: `shared/`, `modules/dealerships`, `modules/customers`, `modules/appointments`; `@nestjs/cqrs` installed
-- [ ] Shared building blocks: `DomainError` hierarchy, `Clock` port + `SystemClock`, cursor pagination types
+- [x] Shared building blocks: `DomainError` hierarchy, `Clock` port + `SystemClock`, cursor pagination types
 - [ ] Transactions: `@nestjs-cls/transactional` + Prisma adapter wired
 - [ ] `configureApp()`: URI versioning (default `v1`), global `ValidationPipe`, `GlobalExceptionFilter` (standard error format), Swagger at `/docs`
 - [ ] `GET /health` (app + DB check, version-neutral)
@@ -53,3 +53,7 @@
   - `db:seed` = `prisma db seed` → `node prisma/seed.ts`, a no-op until M1. **M1:** Node's type stripping can't import the generated client (extensionless TS imports), so the real seed probably needs a runner such as `tsx`, or a compiled script.
 - **TODO in the test-infra task:** an int test for `PrismaModule` (connects against Testcontainers; boot fails on a bad URL). The health e2e will also cover the DB path.
 - Skeleton: modules are plural (`dealerships`, `customers`, `appointments`), each with `<name>.module.ts` and four layer folders (`.gitkeep` until real files arrive; delete each `.gitkeep` when its folder gets content). `CqrsModule.forRoot()` is registered once in `AppModule`. `@nestjs/cqrs` 12 is ESM-only like the rest of Nest 12 (see the note above).
+- Shared blocks:
+  - **Errors:** `DomainError(code, message, details)` with four abstract categories. Modules must subclass them, never throw the bases.
+  - **Clock:** `Clock` is an abstract class used as the DI token, bound globally to `SystemClock` by `ClockModule`.
+  - **Pagination:** `shared/application/pagination` has `Cursor.encode/decode` (base64url JSON `{c, i}`, strict decode → `InvalidCursorError` `INVALID_CURSOR`), `buildPage` for `take: limit + 1`, and `PageRequest`/`Page<T>` with limits 20/100. The HTTP envelope (`data`/`meta`) is presentation's job (`PageResponseDto`, later).
