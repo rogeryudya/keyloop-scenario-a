@@ -15,7 +15,7 @@
 - [x] Folder skeleton per `docs/architecture/folder-structure.md`: `shared/`, `modules/dealerships`, `modules/customers`, `modules/appointments`; `@nestjs/cqrs` installed
 - [x] Shared building blocks: `DomainError` hierarchy, `Clock` port + `SystemClock`, cursor pagination types
 - [x] Transactions: `@nestjs-cls/transactional` + Prisma adapter wired
-- [ ] `configureApp()`: URI versioning (default `v1`), global `ValidationPipe`, `GlobalExceptionFilter` (standard error format), Swagger at `/docs`
+- [x] `configureApp()`: URI versioning (default `v1`), global `ValidationPipe`, `GlobalExceptionFilter` (standard error format), Swagger at `/docs`
 - [ ] `GET /health` (app + DB check, version-neutral)
 - [ ] Test infra: Jest projects unit / int / e2e; Testcontainers Postgres global setup; `resetDb()`; `FixedClock`; e2e app factory using `configureApp()`; scripts `test`, `test:int`, `test:e2e`, `test:cov`, `test:all`
 - [ ] GitHub repo + basic `.github/workflows/ci.yml`: lint → unit / integration / e2e (terraform, smoke, Bugbot come in M4)
@@ -61,3 +61,9 @@
   - **Wiring:** `TransactionsModule` (`ClsModule.forRoot` + `ClsPluginTransactional` + `TransactionalAdapterPrisma<PrismaService>`, `sqlFlavor: 'postgresql'`). Repositories inject `PrismaTransactionHost` and use `txHost.tx`.
   - **Checked:** a one-off script against the dev DB confirmed a commit persists and a throw rolls back. The test-infra task turns that into an int test.
   - **Gotcha:** `@Transactional()` resolves `TransactionHost.getInstance()` at call time, so handler **unit tests** need a TransactionHost registered (a no-op adapter helper in `test/helpers`, added with the test infra) or they throw "TransactionHost not initialized".
+- `configureApp()` (`src/configure-app.ts`):
+  - **Error mapping:** `GlobalExceptionFilter` delegates to the pure `toHttpError()`. DomainError categories map to 400/404/409/422. An uncategorised DomainError → 500. Nest `HttpException` and pre-pipeline 4xx errors (body-parser) → status name as `code`. Everything else → generic 500 `INTERNAL_ERROR` (logged with stack).
+  - **Validation:** `ValidationPipe` failures become `RequestValidationError` (`VALIDATION_FAILED`, details with dotted paths). Generic codes are listed in `docs/api.md`.
+  - **Tests:** `src/configure-app.spec.ts` is an in-process Supertest test (no DB) of the whole pipeline with a throwaway controller.
+  - Nest's enum is `VersioningType` (`conventions.md` had `VersionType`; fixed).
+- Deferred to the first list endpoint (M1): `CursorQueryDto` and `PageResponseDto<T>` in `shared/presentation/dto` (no use yet).

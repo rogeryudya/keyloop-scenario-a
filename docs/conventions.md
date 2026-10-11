@@ -22,7 +22,7 @@
 - REST, JSON, plural resource nouns: `GET /v1/vehicles`, `POST /v1/vehicles/:id/appointments`.
 
 ### Versioning
-- URI versioning via Nest: `app.enableVersioning({ type: VersionType.URI, defaultVersion: '1' })` → every route is `/v{n}/...`.
+- URI versioning via Nest: `app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })` → every route is `/v{n}/...`.
 - Only a major version appears in the URL. Start at `v1`; there is no `v0` and no minor versions in the path.
 - Operational endpoints are unversioned (`VERSION_NEUTRAL`): `/health`, `/docs`.
 - **Non-breaking (stay on the same version):** adding an endpoint, adding an optional request field, adding a response field, adding a new error `code`.
