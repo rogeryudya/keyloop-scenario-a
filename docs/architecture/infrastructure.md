@@ -32,7 +32,6 @@ export class PrismaAppointmentRepository extends AppointmentRepository {
 ## Module wiring
 ```ts
 @Module({
-  imports: [CqrsModule],
   controllers: [AppointmentController],
   providers: [
     CreateAppointmentHandler,

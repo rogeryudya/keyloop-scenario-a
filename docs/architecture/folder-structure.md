@@ -16,8 +16,8 @@ src/
       interceptors/               logging / request-id
       dto/                        ErrorResponseDto, CursorQueryDto, PageResponseDto
   modules/
-    appointment/
-      appointment.module.ts           wires handlers, binds ports → adapters
+    appointments/                   (also dealerships/, customers/)
+      appointments.module.ts          wires handlers, binds ports → adapters
       domain/
         appointment.entity.ts
         appointment-status.ts         value object / enum
@@ -70,5 +70,5 @@ docker-compose.yml                floci, otel-lgtm, wiremock (+ datadog profile)
 3. Prisma model + migration; `Prisma<Name>Repository` + mapper in `infrastructure/`.
 4. First command/query folder in `application/`.
 5. Controller + DTOs in `presentation/`.
-6. `<name>.module.ts`: import `CqrsModule`, register handlers, bind `{ provide: XRepository, useClass: PrismaXRepository }`.
+6. `<name>.module.ts`: register handlers (`CqrsModule.forRoot()` is registered once in `AppModule`; don't import it again), bind `{ provide: XRepository, useClass: PrismaXRepository }`.
 7. Register the module in `app.module.ts`.
