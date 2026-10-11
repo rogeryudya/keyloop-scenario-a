@@ -17,7 +17,7 @@
 - [x] Transactions: `@nestjs-cls/transactional` + Prisma adapter wired
 - [x] `configureApp()`: URI versioning (default `v1`), global `ValidationPipe`, `GlobalExceptionFilter` (standard error format), Swagger at `/docs`
 - [x] `GET /health` (app + DB check, version-neutral)
-- [ ] Test infra: Jest projects unit / int / e2e; Testcontainers Postgres global setup; `resetDb()`; `FixedClock`; e2e app factory using `configureApp()`; scripts `test`, `test:int`, `test:e2e`, `test:cov`, `test:all`
+- [x] Test infra: Jest projects unit / int / e2e; Testcontainers Postgres global setup; `resetDb()`; `FixedClock`; e2e app factory using `configureApp()`; scripts `test`, `test:int`, `test:e2e`, `test:cov`, `test:all`
 - [ ] GitHub repo + basic `.github/workflows/ci.yml`: lint → unit / integration / e2e (terraform, smoke, Bugbot come in M4)
 - [ ] Update `CLAUDE.md` commands to match the real scripts
 
@@ -70,3 +70,9 @@
 - Health:
   - **Shape:** `src/health/` (outside CQRS). `DatabaseHealthIndicator` runs `SELECT 1`, never throws, and has a 2 s timeout. 503 uses the standard error format with code `SERVICE_UNAVAILABLE`; the controller sets the status itself, since the filter maps unexpected 5xx to 500 on purpose.
   - **Checked by hand:** 200, then 503 after stopping Postgres, then 200 after restarting it.
+- Test infra:
+  - **Jest projects:** `unit` (`*.spec.ts` in src/ and test/), `int` (`*.int-spec.ts`) and `e2e` (`test/e2e/*.e2e-spec.ts`). `int`/`e2e` share `test/helpers/global-setup.ts`, which starts Testcontainers `postgres:17-alpine`, runs `migrate deploy` and sets `DATABASE_URL`. It's idempotent and runs with `--runInBand`.
+  - **Helpers:** `resetDb()`, `createTestApp({ clock })`, `FixedClock`, and `useNoOpTransactions()` for handler unit tests.
+  - **Tests:** `test/lint/boundaries.spec.ts` covers the 32 boundary cases (resolves the earlier TODO; a mutation check confirms it fails if the rules break). `prisma.int-spec.ts` covers connect, commit, rollback and fail-fast on a bad URL (resolves the earlier TODO).
+- **Podman gotcha:** this machine's "Docker" is Podman (Windows). Testcontainers' default Postgres wait strategy also probes the internal port via `docker exec`, which **hangs forever** on Podman. The global setup waits on `Wait.forHealthCheck()` (pg_isready) only, which starts in about 4 s. Each `test:int`/`test:e2e` run takes about 15 s.
+- Coverage: `pnpm test:cov` (unit). The ≥90 % domain+application gate is added once domain code exists (M1/M5).
