@@ -14,7 +14,7 @@
 - [x] Prisma installed and connected; empty initial migration; scripts `db:migrate`, `db:seed`
 - [x] Folder skeleton per `docs/architecture/folder-structure.md`: `shared/`, `modules/dealerships`, `modules/customers`, `modules/appointments`; `@nestjs/cqrs` installed
 - [x] Shared building blocks: `DomainError` hierarchy, `Clock` port + `SystemClock`, cursor pagination types
-- [ ] Transactions: `@nestjs-cls/transactional` + Prisma adapter wired
+- [x] Transactions: `@nestjs-cls/transactional` + Prisma adapter wired
 - [ ] `configureApp()`: URI versioning (default `v1`), global `ValidationPipe`, `GlobalExceptionFilter` (standard error format), Swagger at `/docs`
 - [ ] `GET /health` (app + DB check, version-neutral)
 - [ ] Test infra: Jest projects unit / int / e2e; Testcontainers Postgres global setup; `resetDb()`; `FixedClock`; e2e app factory using `configureApp()`; scripts `test`, `test:int`, `test:e2e`, `test:cov`, `test:all`
@@ -57,3 +57,7 @@
   - **Errors:** `DomainError(code, message, details)` with four abstract categories. Modules must subclass them, never throw the bases.
   - **Clock:** `Clock` is an abstract class used as the DI token, bound globally to `SystemClock` by `ClockModule`.
   - **Pagination:** `shared/application/pagination` has `Cursor.encode/decode` (base64url JSON `{c, i}`, strict decode → `InvalidCursorError` `INVALID_CURSOR`), `buildPage` for `take: limit + 1`, and `PageRequest`/`Page<T>` with limits 20/100. The HTTP envelope (`data`/`meta`) is presentation's job (`PageResponseDto`, later).
+- Transactions:
+  - **Wiring:** `TransactionsModule` (`ClsModule.forRoot` + `ClsPluginTransactional` + `TransactionalAdapterPrisma<PrismaService>`, `sqlFlavor: 'postgresql'`). Repositories inject `PrismaTransactionHost` and use `txHost.tx`.
+  - **Checked:** a one-off script against the dev DB confirmed a commit persists and a throw rolls back. The test-infra task turns that into an int test.
+  - **Gotcha:** `@Transactional()` resolves `TransactionHost.getInstance()` at call time, so handler **unit tests** need a TransactionHost registered (a no-op adapter helper in `test/helpers`, added with the test infra) or they throw "TransactionHost not initialized".
