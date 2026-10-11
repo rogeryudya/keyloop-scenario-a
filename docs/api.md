@@ -13,7 +13,7 @@ Unversioned: `/health`, `/docs`.
 ## Endpoints
 | Method | Path | Purpose | Req ID | Status |
 |---|---|---|---|---|
-| GET | `/health` | Liveness + DB check | NFR-1 | planned |
+| GET | `/health` | Liveness + DB check (`SELECT 1`, 2 s timeout) | NFR-1 | done |
 
 ## Generic error codes
 Returned by the platform for any endpoint, in the standard error format (`conventions.md` › Errors). Module-specific codes are listed with their endpoints.
@@ -38,4 +38,8 @@ Record every API change here. Mark breaking changes clearly; they require a new 
 Response `200`
 ```json
 { "status": "ok", "db": "up" }
+```
+Response `503` (DB unreachable; standard error format)
+```json
+{ "error": { "code": "SERVICE_UNAVAILABLE", "message": "Database is unreachable", "details": [ { "field": "db", "issue": "down" } ] } }
 ```

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { AppConfigModule } from './config/config.module';
+import { HealthModule } from './health/health.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { DealershipsModule } from './modules/dealerships/dealerships.module';
@@ -19,6 +20,7 @@ import { TransactionsModule } from './shared/infrastructure/prisma/transactions.
     DealershipsModule,
     CustomersModule,
     AppointmentsModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

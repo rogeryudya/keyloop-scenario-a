@@ -16,7 +16,7 @@
 - [x] Shared building blocks: `DomainError` hierarchy, `Clock` port + `SystemClock`, cursor pagination types
 - [x] Transactions: `@nestjs-cls/transactional` + Prisma adapter wired
 - [x] `configureApp()`: URI versioning (default `v1`), global `ValidationPipe`, `GlobalExceptionFilter` (standard error format), Swagger at `/docs`
-- [ ] `GET /health` (app + DB check, version-neutral)
+- [x] `GET /health` (app + DB check, version-neutral)
 - [ ] Test infra: Jest projects unit / int / e2e; Testcontainers Postgres global setup; `resetDb()`; `FixedClock`; e2e app factory using `configureApp()`; scripts `test`, `test:int`, `test:e2e`, `test:cov`, `test:all`
 - [ ] GitHub repo + basic `.github/workflows/ci.yml`: lint → unit / integration / e2e (terraform, smoke, Bugbot come in M4)
 - [ ] Update `CLAUDE.md` commands to match the real scripts
@@ -67,3 +67,6 @@
   - **Tests:** `src/configure-app.spec.ts` is an in-process Supertest test (no DB) of the whole pipeline with a throwaway controller.
   - Nest's enum is `VersioningType` (`conventions.md` had `VersionType`; fixed).
 - Deferred to the first list endpoint (M1): `CursorQueryDto` and `PageResponseDto<T>` in `shared/presentation/dto` (no use yet).
+- Health:
+  - **Shape:** `src/health/` (outside CQRS). `DatabaseHealthIndicator` runs `SELECT 1`, never throws, and has a 2 s timeout. 503 uses the standard error format with code `SERVICE_UNAVAILABLE`; the controller sets the status itself, since the filter maps unexpected 5xx to 500 on purpose.
+  - **Checked by hand:** 200, then 503 after stopping Postgres, then 200 after restarting it.
