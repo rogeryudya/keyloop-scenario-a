@@ -1,0 +1,23 @@
+# Local dev dependencies. See docs/local-dev/docker-compose.md.
+# M0: only a temporary Postgres. M4 replaces it with floci (RDS + Secrets Manager) and adds otel-lgtm and wiremock.
+name: keyloop
+
+services:
+  # TEMPORARY (M0–M3): plain Postgres for local dev. Keep the major version in sync with RDS/floci and Testcontainers.
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: keyloop
+      POSTGRES_PASSWORD: keyloop # local-only dev credential, matches .env.example
+      POSTGRES_DB: keyloop
+    ports: ['5432:5432']
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U keyloop -d keyloop']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres-data:

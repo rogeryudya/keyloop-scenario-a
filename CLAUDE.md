@@ -16,7 +16,7 @@ pnpm · Terraform (infra) · Local env: Docker Compose with floci (RDS + Secrets
 
 ```bash
 pnpm install              # install deps
-docker compose up -d      # dev deps: floci, otel-lgtm, wiremock
+docker compose up -d      # dev deps (M0–M3: postgres only; M4: floci, otel-lgtm, wiremock)
 docker compose --profile app up --build   # full stack in Docker (reviewer mode)
 pnpm infra:up             # Terraform (in Docker) → RDS + DB secrets in floci (idempotent)
 pnpm db:migrate           # resolve secret → prisma migrate

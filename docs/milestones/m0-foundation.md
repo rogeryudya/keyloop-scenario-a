@@ -10,7 +10,7 @@
 - [x] ESLint + Prettier; scripts `lint`, `format`, `format:check`, `typecheck`
 - [x] Boundary lint (eslint-plugin-boundaries or dependency-cruiser) enforcing the layer rules; a deliberate violation fails lint
 - [x] Config module: env validated at startup; `.env.example`. `DbCredentialsProvider` in `DATABASE_URL` mode only (Secrets Manager mode comes in M4)
-- [ ] Temporary dev DB: `postgres` service in `docker-compose.yml` (same major version as RDS); replaced by floci in M4
+- [x] Temporary dev DB: `postgres` service in `docker-compose.yml` (same major version as RDS); replaced by floci in M4
 - [ ] Prisma installed and connected; empty initial migration; scripts `db:migrate`, `db:seed`
 - [ ] Folder skeleton per `docs/architecture/folder-structure.md`: `shared/`, `modules/dealerships`, `modules/customers`, `modules/appointments`; `@nestjs/cqrs` installed
 - [ ] Shared building blocks: `DomainError` hierarchy, `Clock` port + `SystemClock`, cursor pagination types
@@ -40,3 +40,5 @@
 - `.env.example` sets `DATABASE_URL` for the temporary M0 dev DB. That's a deliberate exception to "DATABASE_URL in tests only" (CLAUDE.md rule 9) until M4 switches local runs to `DB_SECRET_ID`.
 - **Nest 12 is ESM-only** (`"type": "module"`). Our build stays CommonJS and loads it through Node 24's native `require(esm)`. Jest needs `--experimental-vm-modules` for the same, which is in the `test` script. Keep this in mind for the `int`/`e2e` scripts.
 - A minimal Jest `unit` project was pulled forward from the test-infra task so config could ship with tests (`jest.config.js`, `setupFiles: reflect-metadata`, `types: ["node","jest"]` in tsconfig, `["node"]` in the build tsconfig). The test-infra task adds the `int`/`e2e` projects and other scripts.
+- Postgres major version: **17** (`postgres:17-alpine`). The docs didn't name one, so this is the pick. M4's RDS `engine_version` (floci) and the Testcontainers image must use the same major version.
+- Dev DB: `docker compose up -d` starts only `postgres` on :5432 (`keyloop`/`keyloop`, volume `postgres-data`), matching `.env.example`. Reset with `docker compose down -v`. M4 removes it.
