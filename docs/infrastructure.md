@@ -1,0 +1,91 @@
+# Infrastructure as Code (Terraform)
+
+All AWS resources are defined in Terraform. The **same modules** target floci (local, free, no AWS account) or real AWS; only the environment folder and provider settings differ.
+Rationale: [decisions/0004-terraform-ecs.md](decisions/0004-terraform-ecs.md).
+
+## Scope by phase
+| Phase | Resources | Applied to |
+|---|---|---|
+| **M4: data layer** | RDS Postgres, Secrets Manager DB secret(s) | floci (replaces the bootstrap script) |
+| **M7: compute (stretch)** | ECR repo, ECS cluster + Fargate service + task definition, IAM roles, CloudWatch log group, VPC/subnets/SGs, ALB | floci (real containers); real AWS = `plan` only |
+| Not in scope | Real AWS `apply`, DNS/TLS, autoscaling policies, WAF | — |
+
+## Layout
+```
+infra/
+  modules/
+    database/          aws_db_instance, random_password, DB secret(s) in RDS secret format
+    ecr/               (M7) repository + lifecycle policy
+    network/           (M7) VPC, subnets, security groups
+    ecs-service/       (M7) cluster, task def, service, ALB target group, IAM task/execution roles, log group
+  envs/
+    local/             floci: provider with skip flags, local state, applies database (+ M7 modules)
+    aws-dev/           real AWS shape: S3 backend, same modules; CI runs validate only, never apply
+  .tflint.hcl
+```
+
+## Provider for floci (`envs/local`)
+```hcl
+provider "aws" {
+  region     = "us-east-1"
+  access_key = "test"
+  secret_key = "test"
+
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+  s3_use_path_style           = true
+}
+```
+No `endpoints {}` block: the endpoint comes from `AWS_ENDPOINT_URL` (`http://localhost:4566` from the host, `http://floci:4566` inside Compose), so the same config works in both places.
+
+**State:** local backend with `path = "state/terraform.tfstate"` in `envs/local`. The `state/` folder is git-ignored and mounted as the `tf-state` Docker volume when run via Compose, so state survives container runs. `aws-dev` declares an S3 backend + DynamoDB lock but is never initialised against real AWS in this project.
+
+## `database` module contract
+Inputs: `name`, `engine_version`, `instance_class`, `db_name`, `secret_hosts` (map of secret-suffix → host override; local only).
+Outputs: `endpoint`, `port`, `secret_arns`.
+
+The secret is created by Terraform (not RDS-managed) so it holds the full RDS-format JSON the app expects (`engine, host, port, username, password, dbname`):
+```hcl
+resource "aws_secretsmanager_secret_version" "db" {
+  for_each      = local.secret_hosts            # local: { local = "localhost", docker = "floci" }; aws: { default = address }
+  secret_id     = aws_secretsmanager_secret.db[each.key].id
+  secret_string = jsonencode({
+    engine   = "postgres"
+    host     = each.value
+    port     = aws_db_instance.this.port         # floci assigns a proxy port (7001-7099)
+    username = aws_db_instance.this.username
+    password = random_password.db.result
+    dbname   = var.db_name
+  })
+}
+```
+Secret ids: `keyloop/local/db`, `keyloop/docker/db` (see `local-dev/docker-compose.md`).
+
+## Running Terraform
+Terraform runs **in a container** (`hashicorp/terraform:<pinned>`), so nobody needs it installed:
+
+| Command | Does |
+|---|---|
+| `pnpm infra:up` | `docker compose run --rm terraform` → `init` + `apply -auto-approve` on `envs/local` |
+| `pnpm infra:plan` | same, `plan` only |
+| `pnpm infra:down` | `destroy -auto-approve` on `envs/local` |
+
+In full-stack Compose mode, the `bootstrap` service is this same Terraform container (see `local-dev/docker-compose.md`).
+
+## M7: ECS on floci (stretch)
+Flow, scripted as `pnpm infra:ecs`:
+1. `terraform apply` the `ecr` module → repository URI.
+2. `docker build --target runtime` → tag → `docker login` + `push` to floci ECR (`<account>.dkr.ecr.us-east-1.localhost:4566/keyloop-api`).
+3. `terraform apply` `network` + `ecs-service` with the image tag. The task definition gets `DB_SECRET_ID` as an env var and the secret ARN via the execution role, the same as real AWS.
+4. floci runs the task as a real container; the API is reachable via the ALB (or published awsvpc port).
+
+What this proves: the image, task definition, IAM permissions for the secret, and env wiring are production-shaped. What it doesn't: real networking, scaling or IAM enforcement. Say so in the design notes.
+
+## Rules
+- Pin Terraform and provider versions (`required_version`, `required_providers`). Commit `.terraform.lock.hcl`.
+- No hard-coded secrets; passwords come from `random_password` and live only in Secrets Manager + state.
+- Every resource is tagged (`project = "keyloop"`, `env`).
+- Modules have `variables.tf`, `outputs.tf`, `versions.tf` and a short README.
+- `envs/aws-dev` must always `validate`, even though it's never applied.
+- CI checks: `terraform fmt -check -recursive`, `terraform validate` (both envs), `tflint`. Optional: `trivy config infra/` for misconfigurations.

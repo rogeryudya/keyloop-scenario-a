@@ -1,0 +1,25 @@
+# Milestones
+
+Index and progress tracker. Each milestone has its own file with goal, tasks, acceptance criteria and notes.
+
+**Current milestone: [M0 — Foundation](m0-foundation.md)**
+
+| # | Milestone | Covers | Status |
+|---|---|---|---|
+| M0 | [Foundation](m0-foundation.md) | Scaffold, architecture skeleton, test infra, basic CI | `todo` |
+| M1 | [Domain model and reference data](m1-domain-model.md) | TimeSlot, OpeningHours, Appointment, schema + exclusion constraints, seed, FR-10 | `todo` |
+| M2 | [Booking with availability check](m2-booking.md) | **FR-1 … FR-6**: the core of the brief, incl. concurrency | `todo` |
+| M3 | [Availability query and lifecycle](m3-availability-lifecycle.md) | FR-7 availability, FR-8 cancel, FR-9 list, FR-11 idempotency | `todo` |
+| M4 | [AWS-like environment and full CI](m4-environment.md) | floci + Terraform, Secrets Manager, full-stack Compose, Bugbot | `todo` |
+| M5 | [Observability and quality](m5-observability-quality.md) | OpenTelemetry, logs, metrics, coverage, load check | `todo` |
+| M6 | [Delivery](m6-delivery.md) | README, design notes, clean-machine check | `todo` |
+| M7 | [Cloud-ready infra (stretch)](m7-cloud-infra.md) | ECR + ECS on floci | `todo` |
+
+**Priority if time runs short:** M0 → M1 → M2 are essential (they implement the brief). Then M6 (a reviewer must be able to run it), then M3, M4, M5. M7 is optional.
+
+## Rules
+- Work milestones in order; inside a milestone, one task at a time, top to bottom.
+- Tick `[x]` when a task meets the Definition of Done in `CLAUDE.md`.
+- Status values: `todo` · `in-progress` · `done`. When a status changes, update it **both** here and in the milestone file, and move the "Current milestone" link.
+- Record anything learned mid-milestone (gotchas, deferred work) in that file's **Notes** section.
+- New milestone: copy [_template.md](_template.md), name it `mN-short-name.md`, add a row above.

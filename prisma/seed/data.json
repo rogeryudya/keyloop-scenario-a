@@ -1,0 +1,127 @@
+{
+  "dealerships": [
+    {
+      "id": "10000000-0000-4000-8000-000000000001",
+      "name": "Keyloop Motors Bangkok",
+      "timeZone": "Asia/Bangkok",
+      "opensAt": "08:00",
+      "closesAt": "18:00"
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000002",
+      "name": "Keyloop Motors Ho Chi Minh City",
+      "timeZone": "Asia/Ho_Chi_Minh",
+      "opensAt": "08:00",
+      "closesAt": "17:00"
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000003",
+      "name": "Keyloop Express Hanoi",
+      "timeZone": "Asia/Ho_Chi_Minh",
+      "opensAt": "09:00",
+      "closesAt": "17:00"
+    }
+  ],
+
+  "serviceBays": [
+    { "id": "20000000-0000-4000-8000-000000000101", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Bay 1" },
+    { "id": "20000000-0000-4000-8000-000000000102", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Bay 2" },
+    { "id": "20000000-0000-4000-8000-000000000103", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Bay 3" },
+    { "id": "20000000-0000-4000-8000-000000000201", "dealershipId": "10000000-0000-4000-8000-000000000002", "name": "Bay A" },
+    { "id": "20000000-0000-4000-8000-000000000202", "dealershipId": "10000000-0000-4000-8000-000000000002", "name": "Bay B" },
+    { "id": "20000000-0000-4000-8000-000000000301", "dealershipId": "10000000-0000-4000-8000-000000000003", "name": "Express Bay" }
+  ],
+
+  "serviceTypes": [
+    { "id": "40000000-0000-4000-8000-000000000001", "code": "OIL_CHANGE",          "name": "Oil and filter change",   "durationMinutes": 30 },
+    { "id": "40000000-0000-4000-8000-000000000002", "code": "TYRE_ROTATION",       "name": "Tyre rotation",           "durationMinutes": 45 },
+    { "id": "40000000-0000-4000-8000-000000000003", "code": "BRAKE_SERVICE",       "name": "Brake service",           "durationMinutes": 90 },
+    { "id": "40000000-0000-4000-8000-000000000004", "code": "ANNUAL_SERVICE",      "name": "Annual service",          "durationMinutes": 120 },
+    { "id": "40000000-0000-4000-8000-000000000005", "code": "EV_BATTERY_CHECK",    "name": "EV battery health check", "durationMinutes": 60 },
+    { "id": "40000000-0000-4000-8000-000000000006", "code": "DIAGNOSTICS",         "name": "Engine diagnostics",      "durationMinutes": 60 },
+    { "id": "40000000-0000-4000-8000-000000000007", "code": "TRANSMISSION_REPAIR", "name": "Transmission repair",     "durationMinutes": 180 }
+  ],
+
+  "technicians": [
+    { "id": "30000000-0000-4000-8000-000000000101", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Anong Srisuk",
+      "qualifications": ["OIL_CHANGE", "TYRE_ROTATION", "BRAKE_SERVICE", "ANNUAL_SERVICE"] },
+    { "id": "30000000-0000-4000-8000-000000000102", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Boonsong Chaiwat",
+      "qualifications": ["OIL_CHANGE", "TYRE_ROTATION", "DIAGNOSTICS"] },
+    { "id": "30000000-0000-4000-8000-000000000103", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Chanida Rattanakul",
+      "qualifications": ["EV_BATTERY_CHECK", "DIAGNOSTICS", "ANNUAL_SERVICE"] },
+    { "id": "30000000-0000-4000-8000-000000000104", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Decha Phongsri",
+      "qualifications": ["BRAKE_SERVICE", "ANNUAL_SERVICE", "TRANSMISSION_REPAIR"] },
+
+    { "id": "30000000-0000-4000-8000-000000000201", "dealershipId": "10000000-0000-4000-8000-000000000002", "name": "Nguyen Van An",
+      "qualifications": ["OIL_CHANGE", "TYRE_ROTATION", "BRAKE_SERVICE"] },
+    { "id": "30000000-0000-4000-8000-000000000202", "dealershipId": "10000000-0000-4000-8000-000000000002", "name": "Tran Thi Binh",
+      "qualifications": ["ANNUAL_SERVICE", "DIAGNOSTICS", "EV_BATTERY_CHECK"] },
+    { "id": "30000000-0000-4000-8000-000000000203", "dealershipId": "10000000-0000-4000-8000-000000000002", "name": "Le Minh Chau",
+      "qualifications": ["OIL_CHANGE", "TYRE_ROTATION", "ANNUAL_SERVICE"] },
+
+    { "id": "30000000-0000-4000-8000-000000000301", "dealershipId": "10000000-0000-4000-8000-000000000003", "name": "Pham Thu Ha",
+      "qualifications": ["OIL_CHANGE", "TYRE_ROTATION"] },
+    { "id": "30000000-0000-4000-8000-000000000302", "dealershipId": "10000000-0000-4000-8000-000000000003", "name": "Vu Duc Khoa",
+      "qualifications": ["OIL_CHANGE", "BRAKE_SERVICE", "DIAGNOSTICS"] }
+  ],
+
+  "customers": [
+    { "id": "50000000-0000-4000-8000-000000000001", "firstName": "Somsak",  "lastName": "Jaidee",   "email": "somsak.jaidee@example.com",  "phone": "+66 81 000 0001" },
+    { "id": "50000000-0000-4000-8000-000000000002", "firstName": "Malee",   "lastName": "Sukjai",   "email": "malee.sukjai@example.com",   "phone": "+66 81 000 0002" },
+    { "id": "50000000-0000-4000-8000-000000000003", "firstName": "Prasit",  "lastName": "Wongchai", "email": "prasit.wongchai@example.com", "phone": "+66 81 000 0003" },
+    { "id": "50000000-0000-4000-8000-000000000004", "firstName": "Lan",     "lastName": "Nguyen",   "email": "lan.nguyen@example.com",     "phone": "+84 90 000 0004" },
+    { "id": "50000000-0000-4000-8000-000000000005", "firstName": "Huy",     "lastName": "Tran",     "email": "huy.tran@example.com",       "phone": "+84 90 000 0005" },
+    { "id": "50000000-0000-4000-8000-000000000006", "firstName": "Tuan",    "lastName": "Pham",     "email": "tuan.pham@example.com",      "phone": "+84 90 000 0006" }
+  ],
+
+  "vehicles": [
+    { "id": "60000000-0000-4000-8000-000000000001", "customerId": "50000000-0000-4000-8000-000000000001", "vin": "MR053REE7K0123456", "registration": "1กข 2345",   "make": "Toyota",  "model": "Corolla Altis", "year": 2019 },
+    { "id": "60000000-0000-4000-8000-000000000002", "customerId": "50000000-0000-4000-8000-000000000001", "vin": "5YJ3E1EA7NF123457", "registration": "9กก 9999",   "make": "Tesla",   "model": "Model 3",       "year": 2022 },
+    { "id": "60000000-0000-4000-8000-000000000003", "customerId": "50000000-0000-4000-8000-000000000002", "vin": "MRHGM6640JP123458", "registration": "2ขค 6789",   "make": "Honda",   "model": "City",          "year": 2018 },
+    { "id": "60000000-0000-4000-8000-000000000004", "customerId": "50000000-0000-4000-8000-000000000003", "vin": "WBA8E1C50LK123459", "registration": "3คง 1122",   "make": "BMW",     "model": "320d",          "year": 2020 },
+    { "id": "60000000-0000-4000-8000-000000000005", "customerId": "50000000-0000-4000-8000-000000000004", "vin": "RLLV8AE20PH123460", "registration": "51K-123.45", "make": "VinFast", "model": "VF 8",          "year": 2023 },
+    { "id": "60000000-0000-4000-8000-000000000006", "customerId": "50000000-0000-4000-8000-000000000004", "vin": "RL4BT9F38H0123461", "registration": "51A-678.90", "make": "Toyota",  "model": "Vios",          "year": 2017 },
+    { "id": "60000000-0000-4000-8000-000000000007", "customerId": "50000000-0000-4000-8000-000000000005", "vin": "RP8KF2W67M0123462", "registration": "51G-246.80", "make": "Mazda",   "model": "CX-5",          "year": 2021 },
+    { "id": "60000000-0000-4000-8000-000000000008", "customerId": "50000000-0000-4000-8000-000000000006", "vin": "RLUAA51CPG0123463", "registration": "30A-135.79", "make": "Hyundai", "model": "Accent",        "year": 2016 }
+  ],
+
+  "demoAppointments": [
+    {
+      "id": "70000000-0000-4000-8000-000000000001",
+      "description": "Occupies the only Hanoi bay tomorrow 10:00-10:30 → booking that slot returns NO_SERVICE_BAY_AVAILABLE",
+      "dealershipId": "10000000-0000-4000-8000-000000000003",
+      "serviceBayId": "20000000-0000-4000-8000-000000000301",
+      "technicianId": "30000000-0000-4000-8000-000000000301",
+      "serviceTypeCode": "OIL_CHANGE",
+      "customerId": "50000000-0000-4000-8000-000000000006",
+      "vehicleId": "60000000-0000-4000-8000-000000000008",
+      "dayOffset": 1,
+      "localStart": "10:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000002",
+      "description": "Occupies Decha (the only Bangkok transmission technician) tomorrow 09:00-10:30 → TRANSMISSION_REPAIR at 09:30 returns NO_TECHNICIAN_AVAILABLE although bays are free",
+      "dealershipId": "10000000-0000-4000-8000-000000000001",
+      "serviceBayId": "20000000-0000-4000-8000-000000000101",
+      "technicianId": "30000000-0000-4000-8000-000000000104",
+      "serviceTypeCode": "BRAKE_SERVICE",
+      "customerId": "50000000-0000-4000-8000-000000000003",
+      "vehicleId": "60000000-0000-4000-8000-000000000004",
+      "dayOffset": 1,
+      "localStart": "09:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000003",
+      "description": "A cancelled appointment on the only Hanoi bay tomorrow 14:00 → that slot is still bookable, because cancelled appointments don't block (BR-9)",
+      "dealershipId": "10000000-0000-4000-8000-000000000003",
+      "serviceBayId": "20000000-0000-4000-8000-000000000301",
+      "technicianId": "30000000-0000-4000-8000-000000000302",
+      "serviceTypeCode": "OIL_CHANGE",
+      "customerId": "50000000-0000-4000-8000-000000000004",
+      "vehicleId": "60000000-0000-4000-8000-000000000006",
+      "dayOffset": 1,
+      "localStart": "14:00",
+      "status": "CANCELLED"
+    }
+  ]
+}
