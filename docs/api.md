@@ -16,6 +16,7 @@ Unversioned: `/health`, `/docs`.
 | GET | `/health` | Liveness + DB check (`SELECT 1`, 2 s timeout) | NFR-1 | done |
 | GET | `/v1/dealerships` | List dealerships (cursor pagination) | FR-10 | done |
 | GET | `/v1/dealerships/:id` | One dealership + the service types it supports | FR-10 | done |
+| GET | `/v1/dealerships/:id/availability?serviceTypeId=&date=` | Bookable slots for a service type on a local date (15-min grid, local time with offset) | FR-7 | done |
 | GET | `/v1/service-types` | List service types with durations (cursor pagination) | FR-10 | done |
 | POST | `/v1/appointments` | Book an appointment; bay and technician are allocated (201 + `Location`) | FR-1…FR-5 | done |
 | GET | `/v1/appointments/:id` | One appointment with linked dealership, bay, technician, service type, customer, vehicle | FR-6 | done |
@@ -23,15 +24,15 @@ Unversioned: `/health`, `/docs`.
 ### Module error codes
 | Status | `code` | Endpoint | When |
 |---|---|---|---|
-| 404 | `DEALERSHIP_NOT_FOUND` | `GET /v1/dealerships/:id`, `POST /v1/appointments` | No dealership with that id (BR-13) |
-| 404 | `SERVICE_TYPE_NOT_FOUND` | `POST /v1/appointments` | No service type with that id (BR-13) |
+| 404 | `DEALERSHIP_NOT_FOUND` | `GET /v1/dealerships/:id`, `GET …/availability`, `POST /v1/appointments` | No dealership with that id (BR-13) |
+| 404 | `SERVICE_TYPE_NOT_FOUND` | `GET …/availability`, `POST /v1/appointments` | No service type with that id (BR-13) |
 | 404 | `CUSTOMER_NOT_FOUND` | `POST /v1/appointments` | No customer with that id (BR-13) |
 | 404 | `VEHICLE_NOT_FOUND` | `POST /v1/appointments` | No vehicle with that id (BR-13) |
 | 404 | `APPOINTMENT_NOT_FOUND` | `GET /v1/appointments/:id` | No appointment with that id |
 | 422 | `VEHICLE_NOT_OWNED_BY_CUSTOMER` | `POST /v1/appointments` | The vehicle belongs to another customer (BR-5) |
 | 422 | `APPOINTMENT_IN_PAST` | `POST /v1/appointments` | `start` is not after the current time (BR-3) |
 | 422 | `OUTSIDE_OPENING_HOURS` | `POST /v1/appointments` | `[start, start + duration)` doesn't fit in one day's opening hours, local time (BR-4) |
-| 422 | `SERVICE_TYPE_NOT_SUPPORTED` | `POST /v1/appointments` | No technician at the dealership is qualified for the service type (BR-6) |
+| 422 | `SERVICE_TYPE_NOT_SUPPORTED` | `GET …/availability`, `POST /v1/appointments` | No technician at the dealership is qualified for the service type (BR-6). Same code on both endpoints; the message differs (A-14) |
 | 409 | `NO_SERVICE_BAY_AVAILABLE` | `POST /v1/appointments` | Every bay at the dealership is busy for part of the slot (BR-7) |
 | 409 | `NO_TECHNICIAN_AVAILABLE` | `POST /v1/appointments` | Every qualified technician is busy for part of the slot (BR-8) |
 | 409 | `APPOINTMENT_CONFLICT` | `POST /v1/appointments` | Concurrent bookings kept taking the free resources; still failing after 3 retries (BR-10). Safe to retry |
@@ -58,6 +59,7 @@ Record every API change here. Mark breaking changes clearly; they require a new 
 - v1: initial
 - v1 (M1): added `GET /v1/dealerships`, `GET /v1/dealerships/:id`, `GET /v1/service-types` (non-breaking)
 - v1 (M2): added `POST /v1/appointments`, `GET /v1/appointments/:id` (non-breaking)
+- v1 (M3): added `GET /v1/dealerships/:id/availability` (non-breaking)
 
 ## Examples
 
@@ -107,6 +109,24 @@ Response `200`
 ```
 `supportedServiceTypeIds`: service types at least one technician here is qualified for (BR-6, A-12). Booking any other type returns `SERVICE_TYPE_NOT_SUPPORTED`.
 Response `404`: `DEALERSHIP_NOT_FOUND`. A malformed id → `400 VALIDATION_FAILED` with `details[0].field = "id"`.
+
+### GET /v1/dealerships/:id/availability?serviceTypeId=…&date=2030-01-15
+`date` is a calendar date in the dealership's time zone (A-14). Slots are 15 minutes apart counted from
+opening time (A-9), end by closing time, start after now, and have a free bay and qualified technician
+for the whole service; any of them can be booked with `POST /v1/appointments` using its `start`.
+Response `200` (Bangkok, oil change = 30 min):
+```json
+{
+  "data": [
+    { "start": "2030-01-15T08:00:00+07:00", "end": "2030-01-15T08:30:00+07:00" },
+    { "start": "2030-01-15T08:15:00+07:00", "end": "2030-01-15T08:45:00+07:00" },
+    { "start": "2030-01-15T17:30:00+07:00", "end": "2030-01-15T18:00:00+07:00" }
+  ]
+}
+```
+(truncated). Times carry the dealership's UTC offset at that instant. A day that is over, or fully booked,
+returns `{ "data": [] }`. Errors: `400 VALIDATION_FAILED` (bad id, `serviceTypeId` or `date`),
+`404 DEALERSHIP_NOT_FOUND` / `SERVICE_TYPE_NOT_FOUND`, `422 SERVICE_TYPE_NOT_SUPPORTED`.
 
 ### GET /v1/service-types
 Response `200`

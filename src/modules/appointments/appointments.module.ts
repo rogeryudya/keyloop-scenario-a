@@ -11,10 +11,11 @@ import { PrismaAppointmentRepository } from './infrastructure/prisma-appointment
 import { PrismaBookableResources } from './infrastructure/prisma-bookable-resources';
 import { PrismaBookingParties } from './infrastructure/prisma-booking-parties';
 import { AppointmentController } from './presentation/appointment.controller';
+import { AvailabilityController } from './presentation/availability.controller';
 
 /** Booking, availability and appointment lifecycle (M2–M3). Handlers, controllers and port → adapter bindings are added here as use cases land. */
 @Module({
-  controllers: [AppointmentController],
+  controllers: [AppointmentController, AvailabilityController],
   providers: [
     CreateAppointmentHandler,
     GetAppointmentHandler,
