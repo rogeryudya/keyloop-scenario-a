@@ -42,8 +42,11 @@ No `endpoints {}` block: the endpoint comes from `AWS_ENDPOINT_URL` (`http://loc
 **State:** local backend with `path = "state/terraform.tfstate"` in `envs/local`. The `state/` folder is git-ignored and mounted as the `tf-state` Docker volume when run via Compose, so state survives container runs. `aws-dev` declares an S3 backend + DynamoDB lock but is never initialised against real AWS in this project.
 
 ## `database` module contract
-Inputs: `name`, `engine_version`, `instance_class`, `db_name`, `secret_hosts` (map of secret-suffix → host override; local only).
-Outputs: `endpoint`, `port`, `secret_arns`.
+Inputs: `name`, `engine_version` (default `17`), `instance_class`, `allocated_storage`, `db_name`, `username`, `secret_hosts` (map of secret-suffix → host override; local only), `skip_final_snapshot`.
+Outputs: `endpoint`, `port`, `secret_arns`. Full table: `infra/modules/database/README.md`.
+
+With `secret_hosts` empty (real AWS), the module writes a single secret `<name>/db` holding the instance address.
+Secrets use `recovery_window_in_days = 0`, so `infra:down` followed by `infra:up` can reuse the names.
 
 The secret is created by Terraform (not RDS-managed) so it holds the full RDS-format JSON the app expects (`engine, host, port, username, password, dbname`):
 ```hcl
@@ -63,13 +66,20 @@ resource "aws_secretsmanager_secret_version" "db" {
 Secret ids: `keyloop/local/db`, `keyloop/docker/db` (see `local-dev/docker-compose.md`).
 
 ## Running Terraform
-Terraform runs **in a container** (`hashicorp/terraform:<pinned>`), so nobody needs it installed:
+Terraform runs **in a container** (`hashicorp/terraform:1.16.5`, Compose service `terraform`, profile `tools`), so nobody needs it installed.
+Its entrypoint is `infra/scripts/terraform.sh`, which runs `init` and then the requested action on `envs/local`:
 
 | Command | Does |
 |---|---|
-| `pnpm infra:up` | `docker compose run --rm terraform` → `init` + `apply -auto-approve` on `envs/local` |
+| `pnpm infra:up` | `docker compose run --rm terraform up` → `init` + `apply -auto-approve` |
 | `pnpm infra:plan` | same, `plan` only |
-| `pnpm infra:down` | `destroy -auto-approve` on `envs/local` |
+| `pnpm infra:down` | `destroy -auto-approve` |
+
+- Providers are downloaded into the `tf-data` volume (`TF_DATA_DIR`), not into the bind-mounted source tree. State lives in the `tf-state` volume.
+- `.terraform.lock.hcl` is committed with hashes for linux/darwin (amd64 + arm64) and windows_amd64. To refresh it:
+  `docker compose run --rm --no-deps --entrypoint terraform terraform providers lock -platform=linux_amd64 -platform=linux_arm64 -platform=darwin_arm64 -platform=darwin_amd64 -platform=windows_amd64`
+- The first `infra:up` takes about 1.5 minutes. floci makes the instance available in seconds, but the AWS provider polls on its own interval. Re-runs with nothing to change finish in seconds.
+- `fmt`/`validate` without installing Terraform: `docker compose run --rm --no-deps --entrypoint terraform -w /infra terraform fmt -check -recursive`.
 
 In full-stack Compose mode, the `bootstrap` service is this same Terraform container (see `local-dev/docker-compose.md`).
 

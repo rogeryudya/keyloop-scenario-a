@@ -28,7 +28,7 @@ The API reaches floci's RDS proxy under a different host depending on where it r
 `bootstrap` writes both (same port, same credentials), so switching modes needs no re-bootstrap.
 
 ## Skeleton
-Dependency images are pinned (floci `2.2.0`, otel-lgtm `0.36.0`); the `terraform`/`bootstrap`/`migrate`/`api` services below land in later M4 tasks.
+Dependency images are pinned (floci `2.2.0`, otel-lgtm `0.36.0`, terraform `1.16.5`); the `bootstrap`/`migrate`/`api` services below land in later M4 tasks.
 No WireMock service: the brief has no external HTTP dependencies (requirements A-10).
 
 ```yaml
@@ -65,18 +65,19 @@ services:
   # ---------- full stack (profile: app) ----------
   terraform:                                    # used by `pnpm infra:*` (profile: tools)
     profiles: ["tools"]
-    image: hashicorp/terraform:<pinned>
+    image: hashicorp/terraform:1.16.5
     working_dir: /infra/envs/local
-    volumes: ["./infra:/infra", "tf-state:/infra/envs/local/state"]
-    environment: { <<: *aws-env }
+    entrypoint: ["sh", "/infra/scripts/terraform.sh"]   # up | plan | down
+    volumes: ["./infra:/infra", "tf-state:/infra/envs/local/state", "tf-data:/tf-data"]
+    environment: { <<: *aws-env, TF_DATA_DIR: /tf-data, TF_IN_AUTOMATION: "1" }
     depends_on: { floci: { condition: service_healthy } }
 
   bootstrap:                                    # same image, one-shot apply in full-stack mode
     profiles: ["app"]
-    image: hashicorp/terraform:<pinned>
+    image: hashicorp/terraform:1.16.5
     working_dir: /infra/envs/local
-    volumes: ["./infra:/infra", "tf-state:/infra/envs/local/state"]
-    entrypoint: ["sh", "-c", "terraform init -input=false && terraform apply -auto-approve -input=false"]
+    volumes: ["./infra:/infra", "tf-state:/infra/envs/local/state", "tf-data:/tf-data"]
+    entrypoint: ["sh", "/infra/scripts/terraform.sh", "up"]
     environment: { <<: *aws-env }
     depends_on: { floci: { condition: service_healthy } }
 
@@ -116,6 +117,7 @@ services:
 volumes:
   floci-data:
   tf-state:
+  tf-data:
 ```
 
 ## Dockerfile (multi-stage)

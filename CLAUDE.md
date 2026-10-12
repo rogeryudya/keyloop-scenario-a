@@ -18,6 +18,7 @@ Source of truth: `package.json` scripts. Don't invent others.
 pnpm install              # install deps (postinstall runs prisma generate)
 cp .env.example .env      # local config, validated at startup
 docker compose up -d      # dev deps: floci (RDS + Secrets Manager), otel-lgtm
+pnpm infra:up             # Terraform (in Docker) → RDS + DB secrets in floci; also infra:plan, infra:down
 pnpm db:migrate           # prisma migrate deploy (M4: resolves DB secret first)
 pnpm db:migrate:dev       # create a new migration: pnpm db:migrate:dev --name <change>
 pnpm db:seed              # load prisma/seed/data.json (idempotent; demo appointments = tomorrow)
@@ -34,7 +35,6 @@ pnpm typecheck            # tsc --noEmit
 pnpm format               # prettier --write (format:check in CI)
 # Planned in M4 (not yet in package.json / compose):
 #   docker compose --profile app up --build   full stack in Docker (reviewer mode)
-#   pnpm infra:up                              Terraform → RDS + DB secrets in floci
 ```
 
 ## Hard rules
