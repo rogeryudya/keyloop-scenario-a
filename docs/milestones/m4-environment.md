@@ -13,7 +13,7 @@
 - [x] Multi-stage Dockerfile (`tools`, `runtime`) + Compose `app` profile: bootstrap → migrate/seed → api
 - [x] CI: add `terraform` and `smoke` jobs per `docs/ci.md`; Dependabot config
 - [ ] Branch protection on `main` with required checks; Bugbot installed with `.cursor/BUGBOT.md`
-- [ ] Update README quickstart and `CLAUDE.md` commands
+- [x] Update README quickstart and `CLAUDE.md` commands
 
 ## Acceptance criteria
 - Dev mode: `docker compose up -d && pnpm infra:up && pnpm db:migrate && pnpm start:dev` → `/health` 200 with credentials from floci Secrets Manager

@@ -9,28 +9,30 @@ Progress index: [docs/milestones/README.md](docs/milestones/README.md) — read 
 
 ## Stack
 Node 24 LTS · TypeScript (strict) · NestJS · Clean Architecture + CQRS (`@nestjs/cqrs`) · PostgreSQL + Prisma · Jest + Supertest · ESLint + Prettier ·
-pnpm · Terraform (infra) · Local env: Docker Compose with floci (RDS + Secrets Manager), Grafana LGTM (OTel), WireMock · Tests: Testcontainers. Rationale: [docs/decisions/0001-tech-stack.md](docs/decisions/0001-tech-stack.md).
+pnpm · Terraform (infra) · Local env: Docker Compose with floci (RDS + Secrets Manager), Grafana LGTM (OTel) · Tests: Testcontainers. Rationale: [docs/decisions/0001-tech-stack.md](docs/decisions/0001-tech-stack.md).
 
 ## Commands
 Source of truth: `package.json` scripts. Don't invent others.
 
 ```bash
+docker compose --profile app up --build   # full stack in Docker (reviewer mode); Podman: prefix DOCKER_BUILDKIT=0
+
+# Dev mode (API on host)
 pnpm install              # install deps (postinstall runs prisma generate)
-cp .env.example .env      # local config, validated at startup
+cp .env.example .env      # local config (DB_SECRET_ID + floci), validated at startup
 docker compose up -d      # dev deps: floci (RDS + Secrets Manager), otel-lgtm
 pnpm infra:up             # Terraform (in Docker) → RDS + DB secrets in floci; also infra:plan, infra:down
-docker compose --profile app up --build   # full stack in Docker (reviewer mode); Podman: prefix DOCKER_BUILDKIT=0
 pnpm db:migrate           # prisma migrate deploy; db:* resolve DB_SECRET_ID (or DATABASE_URL) first
 pnpm db:migrate:dev       # create a new migration: pnpm db:migrate:dev --name <change>
 pnpm db:seed              # load prisma/seed/data.json (idempotent; demo appointments = tomorrow)
 pnpm db:generate          # regenerate the Prisma client into src/generated/prisma
 pnpm start:dev            # run API with watch (http://localhost:3000, Swagger at /docs)
-pnpm build                # compile to dist/ (pnpm start:prod runs it)
+pnpm build                # compile to dist/ (pnpm start:prod runs dist/main)
 pnpm test                 # unit tests (no Docker)
-pnpm test:int             # integration (Testcontainers Postgres, needs Docker)
+pnpm test:int             # integration (Testcontainers Postgres + floci, needs Docker; SKIP_FLOCI_TESTS=1 skips floci)
 pnpm test:e2e             # API e2e (full app + Testcontainers Postgres)
 pnpm test:cov             # unit tests with coverage
-pnpm test:all             # lint → typecheck → unit → int → e2e (what CI runs)
+pnpm test:all             # lint → typecheck → unit → int → e2e (CI also runs format:check, terraform, smoke)
 pnpm lint                 # eslint (incl. layer boundaries)
 pnpm typecheck            # tsc --noEmit
 pnpm format               # prettier --write (format:check in CI)
