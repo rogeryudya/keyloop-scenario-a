@@ -4,6 +4,7 @@ import { CreateAppointmentHandler } from './application/commands/create-appointm
 import { AppointmentReadModel } from './application/ports/appointment-read-model';
 import { BookableResources } from './application/ports/bookable-resources';
 import { BookingParties } from './application/ports/booking-parties';
+import { IdempotencyKeys } from './application/ports/idempotency-keys';
 import { GetAppointmentHandler } from './application/queries/get-appointment/get-appointment.handler';
 import { ListAppointmentsHandler } from './application/queries/list-appointments/list-appointments.handler';
 import { GetAvailabilityHandler } from './application/queries/get-availability/get-availability.handler';
@@ -12,6 +13,7 @@ import { PrismaAppointmentReadModel } from './infrastructure/prisma-appointment-
 import { PrismaAppointmentRepository } from './infrastructure/prisma-appointment.repository';
 import { PrismaBookableResources } from './infrastructure/prisma-bookable-resources';
 import { PrismaBookingParties } from './infrastructure/prisma-booking-parties';
+import { PrismaIdempotencyKeys } from './infrastructure/prisma-idempotency-keys';
 import { AppointmentController } from './presentation/appointment.controller';
 import { AvailabilityController } from './presentation/availability.controller';
 
@@ -28,6 +30,7 @@ import { AvailabilityController } from './presentation/availability.controller';
     { provide: AppointmentReadModel, useClass: PrismaAppointmentReadModel },
     { provide: BookableResources, useClass: PrismaBookableResources },
     { provide: BookingParties, useClass: PrismaBookingParties },
+    { provide: IdempotencyKeys, useClass: PrismaIdempotencyKeys },
   ],
 })
 export class AppointmentsModule {}

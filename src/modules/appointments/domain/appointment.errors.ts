@@ -117,3 +117,14 @@ export class AppointmentNotFoundError extends NotFoundError {
     ]);
   }
 }
+
+/** FR-11: an `Idempotency-Key` was already used for a different booking request (A-16). */
+export class IdempotencyKeyReusedError extends BusinessRuleError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_KEY_REUSED',
+      'This Idempotency-Key was already used for a different booking request',
+      [{ field: 'Idempotency-Key', issue: 'already used with a different request body' }],
+    );
+  }
+}

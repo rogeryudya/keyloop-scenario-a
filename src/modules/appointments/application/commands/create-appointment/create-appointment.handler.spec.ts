@@ -3,11 +3,13 @@ import { FixedClock } from '../../../../../../test/fakes/fixed-clock';
 import { InMemoryAppointmentRepository } from '../../../../../../test/fakes/in-memory-appointment-repository';
 import { InMemoryBookableResources } from '../../../../../../test/fakes/in-memory-bookable-resources';
 import { InMemoryBookingParties } from '../../../../../../test/fakes/in-memory-booking-parties';
+import { InMemoryIdempotencyKeys } from '../../../../../../test/fakes/in-memory-idempotency-keys';
 import { useNoOpTransactions } from '../../../../../../test/helpers/transactions';
 import { OpeningHours } from '../../../../../shared/domain/opening-hours';
 import { TimeSlot } from '../../../../../shared/domain/time-slot';
 import { AppointmentStatus } from '../../../domain/appointment-status';
 import { Appointment } from '../../../domain/appointment.entity';
+import { IdempotencyKeyReusedError } from '../../../domain/appointment.errors';
 import { CreateAppointmentCommand } from './create-appointment.command';
 import { CreateAppointmentHandler, MAX_CONFLICT_RETRIES } from './create-appointment.handler';
 
@@ -54,6 +56,8 @@ describe('CreateAppointmentHandler', () => {
   let closeTransactions: () => Promise<void>;
   let appointments: InMemoryAppointmentRepository;
   let handler: CreateAppointmentHandler;
+  let idempotencyKeys: InMemoryIdempotencyKeys;
+  let clock: FixedClock;
 
   const setup = (
     options: { existing?: Appointment[]; bays?: string[]; technicians?: string[] } = {},
@@ -82,7 +86,15 @@ describe('CreateAppointmentHandler', () => {
         [MALEE_CAR, MALEE],
       ]),
     );
-    handler = new CreateAppointmentHandler(appointments, resources, parties, new FixedClock(NOW));
+    idempotencyKeys = new InMemoryIdempotencyKeys();
+    clock = new FixedClock(NOW);
+    handler = new CreateAppointmentHandler(
+      appointments,
+      resources,
+      parties,
+      idempotencyKeys,
+      clock,
+    );
   };
 
   const command = (overrides: Partial<CreateAppointmentCommand> = {}): CreateAppointmentCommand => {
@@ -92,6 +104,7 @@ describe('CreateAppointmentHandler', () => {
       dealershipId: BANGKOK,
       serviceTypeId: OIL_CHANGE,
       start: TOMORROW_10AM,
+      idempotencyKey: undefined as string | undefined,
       ...overrides,
     };
     return new CreateAppointmentCommand(
@@ -100,6 +113,7 @@ describe('CreateAppointmentHandler', () => {
       c.dealershipId,
       c.serviceTypeId,
       c.start,
+      c.idempotencyKey,
     );
   };
 
@@ -328,6 +342,66 @@ describe('CreateAppointmentHandler', () => {
       const start = new Date('2026-10-13T10:45:00.000Z');
 
       expect(await rejection(command({ start }))).toMatchObject({ code: 'OUTSIDE_OPENING_HOURS' });
+    });
+  });
+
+  describe('Idempotency-Key (FR-11)', () => {
+    const KEY = 'booking-7f3a';
+
+    it('replays the first result for the same key and request: one appointment', async () => {
+      const first = await handler.execute(command({ idempotencyKey: KEY }));
+
+      const second = await handler.execute(command({ idempotencyKey: KEY }));
+
+      expect(second).toEqual(first);
+      expect(appointments.all).toHaveLength(1);
+      expect(idempotencyKeys.all).toMatchObject([{ key: KEY, appointmentId: first.id }]);
+    });
+
+    it('rejects the same key with a different request: IDEMPOTENCY_KEY_REUSED', async () => {
+      await handler.execute(command({ idempotencyKey: KEY }));
+
+      const error = await rejection(
+        command({ idempotencyKey: KEY, start: new Date('2026-10-13T04:00:00.000Z') }),
+      );
+
+      expect(error).toBeInstanceOf(IdempotencyKeyReusedError);
+      expect(error).toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+      expect(appointments.all).toHaveLength(1);
+    });
+
+    it('replays even after the start time has passed (key checked first)', async () => {
+      const first = await handler.execute(command({ idempotencyKey: KEY }));
+      clock.set('2026-10-14T00:00:00.000Z');
+
+      await expect(handler.execute(command({ idempotencyKey: KEY }))).resolves.toEqual(first);
+    });
+
+    it('does not record a failed request, so the key can be used again', async () => {
+      await rejection(command({ idempotencyKey: KEY, vehicleId: UNKNOWN }));
+
+      const { id } = await handler.execute(command({ idempotencyKey: KEY }));
+
+      expect(idempotencyKeys.all).toMatchObject([{ key: KEY, appointmentId: id }]);
+    });
+
+    it('records nothing without a key', async () => {
+      await handler.execute(command());
+
+      expect(idempotencyKeys.all).toEqual([]);
+    });
+
+    it('replays the winner when a concurrent request saved the same key first', async () => {
+      // Capture the hash this request produces, then make the next key save lose to a "winner".
+      await handler.execute(command({ idempotencyKey: 'probe' }));
+      const [probe] = idempotencyKeys.all;
+      if (!probe) throw new Error('probe booking should have stored its key');
+      const winnerId = 'a0000000-0000-4000-8000-0000000000aa';
+      idempotencyKeys.loseNextSave({ ...probe, key: KEY, appointmentId: winnerId });
+
+      await expect(handler.execute(command({ idempotencyKey: KEY }))).resolves.toEqual({
+        id: winnerId,
+      });
     });
   });
 });

@@ -160,6 +160,59 @@ describe('Appointments (e2e)', () => {
       });
     });
 
+    describe('Idempotency-Key (FR-11)', () => {
+      const withKey = (key: string, body: Record<string, unknown>) =>
+        http().post('/v1/appointments').set('Idempotency-Key', key).send(body);
+
+      it('replays the same 201, id and Location for the same key and body', async () => {
+        const first = await withKey('k-1', booking()).expect(201);
+
+        const second = await withKey('k-1', booking()).expect(201);
+
+        expect(second.body).toEqual(first.body);
+        expect(second.headers.location).toBe(first.headers.location);
+        expect(await prisma.appointment.count()).toBe(1);
+      });
+
+      it('treats the same start in another offset as the same request', async () => {
+        const first = await withKey('k-1', booking()).expect(201);
+
+        const second = await withKey(
+          'k-1',
+          booking({ start: '2030-01-15T03:00:00Z' }), // = 10:00+07:00
+        ).expect(201);
+
+        expect(second.body).toEqual(first.body);
+      });
+
+      it('returns 422 IDEMPOTENCY_KEY_REUSED for the same key with a different body', async () => {
+        await withKey('k-1', booking()).expect(201);
+
+        const res = await withKey('k-1', booking({ start: '2030-01-15T11:00:00+07:00' })).expect(
+          422,
+        );
+
+        expect(errorOf(res).code).toBe('IDEMPOTENCY_KEY_REUSED');
+        expect(await prisma.appointment.count()).toBe(1);
+      });
+
+      it('books separately for different keys', async () => {
+        await withKey('k-1', booking()).expect(201);
+        await withKey('k-2', booking()).expect(201);
+
+        expect(await prisma.appointment.count()).toBe(2);
+      });
+
+      it('returns 400 VALIDATION_FAILED for a malformed key', async () => {
+        const res = await withKey('has spaces', booking()).expect(400);
+
+        expect(errorOf(res)).toMatchObject({
+          code: 'VALIDATION_FAILED',
+          details: [{ field: 'Idempotency-Key' }],
+        });
+      });
+    });
+
     it('is only reachable under /v1', async () => {
       await http().post('/appointments').send(booking()).expect(404);
     });

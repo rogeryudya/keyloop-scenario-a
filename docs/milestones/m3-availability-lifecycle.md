@@ -10,7 +10,7 @@
 - [x] Unit tests: fully free day, fully booked day, slots blocked only by technician qualification, last slot that just fits before closing, today with past slots removed
 - [x] FR-8 `CancelAppointmentCommand`: `Appointment.cancel(now)` (BR-12); `POST /v1/appointments/:id/cancel` → 200 with the updated appointment; cancelled slot becomes bookable again (integration test)
 - [x] FR-9 `ListAppointmentsQuery`: filter by `dealershipId` or `customerId` (+ optional date range), cursor pagination; `GET /v1/appointments`
-- [ ] FR-11 (Could) `Idempotency-Key` header on `POST /v1/appointments`: same key + same body → same response, no second appointment; same key + different body → 422
+- [x] FR-11 (Could) `Idempotency-Key` header on `POST /v1/appointments`: same key + same body → same response, no second appointment; same key + different body → 422
 - [ ] e2e tests for each endpoint; `docs/api.md` updated
 
 ## Acceptance criteria
@@ -25,3 +25,4 @@
 - The milestone's unit-test list (free day, fully booked, qualification-only block, last slot before closing, today minus past slots) is covered in `availability.spec.ts` (written with FR-7); ticked after checking each case.
 - FR-8: the cancel endpoint sends `CancelAppointmentCommand` (returns nothing), then re-reads via `GetAppointmentQuery` for the 200 body. Integration test `test/lifecycle/cancel-appointment.int-spec.ts` rebooks the same bay + technician + time after a cancel, proving the DB exclusion constraint ignores cancelled rows. Known gap (deferred): two *simultaneous* cancels of the same appointment can both succeed (no row lock), the second overwriting `cancelledAt`. Harmless today (end state is still `CANCELLED`); add `SELECT … FOR UPDATE` or a conditional update if cancel ever gets side effects.
 - FR-9: `AppointmentReadModel.list(filter, slice)` (Prisma + in-memory fake share semantics); `findById` and `list` share one `include` + mapper. Decisions: A-15. The "at least one filter" rule is a DTO `ValidateIf`, reported on `customerId`.
+- FR-11: ADR-0007 + A-16. New table `idempotency_keys` (migration `20261012120000_m3_idempotency_keys`), port `IdempotencyKeys`. A same-key race loses on the PK, surfaces as `AppointmentConflictError` and reuses the M2 retry loop to replay the winner; the concurrency int test asserts all 10 parallel same-key requests get the one appointment. The header is read by an `@IdempotencyKey()` param decorator (Nest's `@Headers()` takes no pipes). Deferred: key expiry/cleanup.

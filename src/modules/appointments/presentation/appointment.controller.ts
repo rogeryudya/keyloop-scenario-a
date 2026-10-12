@@ -14,6 +14,7 @@ import {
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiHeader,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiTags,
@@ -33,6 +34,7 @@ import {
 } from './dto/appointment.response.dto';
 import { CreateAppointmentRequestDto } from './dto/create-appointment.request.dto';
 import { ListAppointmentsQueryDto } from './dto/list-appointments.query.dto';
+import { IDEMPOTENCY_KEY_HEADER, IdempotencyKey } from './idempotency-key.decorator';
 
 @ApiTags('appointments')
 @Controller({ path: 'appointments', version: '1' })
@@ -44,9 +46,16 @@ export class AppointmentController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @ApiHeader({
+    name: IDEMPOTENCY_KEY_HEADER,
+    required: false,
+    description:
+      'Optional (FR-11). Repeating a successful request with the same key and body returns the ' +
+      'same 201 without booking again; the same key with a different body is 422.',
+  })
   @ApiCreatedResponse({
     type: AppointmentIdResponseDto,
-    description: 'Booked; `Location` header points to the new appointment',
+    description: 'Booked (or replayed for a known Idempotency-Key); `Location` points to it',
   })
   @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'VALIDATION_FAILED' })
   @ApiNotFoundResponse({
@@ -62,10 +71,11 @@ export class AppointmentController {
     type: ErrorResponseDto,
     description:
       'APPOINTMENT_IN_PAST, OUTSIDE_OPENING_HOURS, VEHICLE_NOT_OWNED_BY_CUSTOMER, ' +
-      'SERVICE_TYPE_NOT_SUPPORTED',
+      'SERVICE_TYPE_NOT_SUPPORTED, IDEMPOTENCY_KEY_REUSED',
   })
   async create(
     @Body() dto: CreateAppointmentRequestDto,
+    @IdempotencyKey() idempotencyKey: string | undefined,
     @Res({ passthrough: true }) res: ServerResponse,
   ): Promise<AppointmentIdResponseDto> {
     const { id } = await this.commands.execute(
@@ -75,6 +85,7 @@ export class AppointmentController {
         dto.dealershipId,
         dto.serviceTypeId,
         new Date(dto.start),
+        idempotencyKey,
       ),
     );
     res.setHeader('Location', `/v1/appointments/${id}`);

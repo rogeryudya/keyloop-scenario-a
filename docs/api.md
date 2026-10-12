@@ -31,6 +31,7 @@ Unversioned: `/health`, `/docs`.
 | 404 | `CUSTOMER_NOT_FOUND` | `POST /v1/appointments` | No customer with that id (BR-13) |
 | 404 | `VEHICLE_NOT_FOUND` | `POST /v1/appointments` | No vehicle with that id (BR-13) |
 | 404 | `APPOINTMENT_NOT_FOUND` | `GET /v1/appointments/:id`, `POST …/:id/cancel` | No appointment with that id |
+| 422 | `IDEMPOTENCY_KEY_REUSED` | `POST /v1/appointments` | The `Idempotency-Key` was already used for a different request body (FR-11, A-16) |
 | 422 | `APPOINTMENT_NOT_CANCELLABLE` | `POST /v1/appointments/:id/cancel` | The appointment is not `CONFIRMED` (already cancelled) (BR-12) |
 | 422 | `VEHICLE_NOT_OWNED_BY_CUSTOMER` | `POST /v1/appointments` | The vehicle belongs to another customer (BR-5) |
 | 422 | `APPOINTMENT_IN_PAST` | `POST /v1/appointments` | `start` is not after the current time (BR-3) |
@@ -40,7 +41,8 @@ Unversioned: `/health`, `/docs`.
 | 409 | `NO_TECHNICIAN_AVAILABLE` | `POST /v1/appointments` | Every qualified technician is busy for part of the slot (BR-8) |
 | 409 | `APPOINTMENT_CONFLICT` | `POST /v1/appointments` | Concurrent bookings kept taking the free resources; still failing after 3 retries (BR-10). Safe to retry |
 
-`POST /v1/appointments` checks in this order and reports the first failure: request shape (400) → dealership,
+`POST /v1/appointments` checks in this order and reports the first failure: request shape and `Idempotency-Key` format (400) →
+known `Idempotency-Key` (replay `201`, or `422 IDEMPOTENCY_KEY_REUSED`) → dealership,
 service type, customer, vehicle exist (404) → vehicle ownership (422) → future start, opening hours (422) →
 service supported (422) → bay (409) → technician (409) (A-13).
 
@@ -62,7 +64,7 @@ Record every API change here. Mark breaking changes clearly; they require a new 
 - v1: initial
 - v1 (M1): added `GET /v1/dealerships`, `GET /v1/dealerships/:id`, `GET /v1/service-types` (non-breaking)
 - v1 (M2): added `POST /v1/appointments`, `GET /v1/appointments/:id` (non-breaking)
-- v1 (M3): added `GET /v1/dealerships/:id/availability`, `POST /v1/appointments/:id/cancel`, `GET /v1/appointments` (non-breaking)
+- v1 (M3): added `GET /v1/dealerships/:id/availability`, `POST /v1/appointments/:id/cancel`, `GET /v1/appointments`; optional `Idempotency-Key` header on `POST /v1/appointments` (non-breaking)
 
 ## Examples
 
@@ -211,3 +213,10 @@ At least one of `dealershipId` / `customerId` is required (both → both must ma
 `to` (exclusive) filter on the start time and need an offset (A-15). Cancelled appointments are included.
 Response `200`: `{ "data": [ <appointment as in GET /v1/appointments/:id>, … ], "meta": { "nextCursor": null, "limit": 20 } }`,
 newest booking first. Errors: `400 VALIDATION_FAILED` (no filter, bad UUID/time/limit), `400 INVALID_CURSOR`.
+
+### POST /v1/appointments with `Idempotency-Key`
+Optional header, e.g. `Idempotency-Key: 0b9c7a52-6a8e-4c3e-9d0f-2f7f1c1e4a10` (FR-11, A-16). The first successful
+request books as usual. Repeating it with the same key and the same booking returns the **same** `201`, body and
+`Location`, with no second appointment; this works even after the start time has passed. The same key with a
+different booking → `422 IDEMPOTENCY_KEY_REUSED`. A malformed key → `400 VALIDATION_FAILED`
+(`details[0].field = "Idempotency-Key"`). Failed requests aren't recorded, so retrying one with the same key is safe.

@@ -98,4 +98,22 @@ describe('CreateAppointment under concurrency (int)', () => {
     expect(new Set(rows.map((r) => r.serviceBayId)).size).toBe(2);
     expect(new Set(rows.map((r) => r.technicianId)).size).toBe(2);
   });
+
+  it(`creates one appointment for ${PARALLEL} parallel requests with the same Idempotency-Key (FR-11)`, async () => {
+    // HCMC has two free bays: without the key, two of these would book.
+    const results = await Promise.allSettled(
+      Array.from({ length: PARALLEL }, () =>
+        commands.execute(
+          new CreateAppointmentCommand(LAN, LAN_CAR, HCMC, OIL_CHANGE, START, 'same-key'),
+        ),
+      ),
+    );
+
+    const { booked } = split(results);
+    const ids = new Set(booked.map((r) => (r as PromiseFulfilledResult<{ id: string }>).value.id));
+    expect(await prisma.appointment.count({ where: { dealershipId: HCMC } })).toBe(1);
+    expect(await prisma.idempotencyKey.count()).toBe(1);
+    expect(ids.size).toBe(1); // every request that succeeded got the same appointment
+    expect(booked).toHaveLength(PARALLEL); // the losers replay the winner
+  });
 });
