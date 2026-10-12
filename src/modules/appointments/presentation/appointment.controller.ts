@@ -12,6 +12,7 @@ import {
 import type { ServerResponse } from 'node:http';
 import { ErrorResponseDto } from '../../../shared/presentation/dto/error-response.dto';
 import { IdParamDto } from '../../../shared/presentation/dto/id-param.dto';
+import { CancelAppointmentCommand } from '../application/commands/cancel-appointment/cancel-appointment.command';
 import { CreateAppointmentCommand } from '../application/commands/create-appointment/create-appointment.command';
 import { GetAppointmentQuery } from '../application/queries/get-appointment/get-appointment.query';
 import { AppointmentIdResponseDto, AppointmentResponseDto } from './dto/appointment.response.dto';
@@ -72,6 +73,26 @@ export class AppointmentController {
   })
   @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'APPOINTMENT_NOT_FOUND' })
   async get(@Param() { id }: IdParamDto): Promise<AppointmentResponseDto> {
+    return AppointmentResponseDto.from(await this.queries.execute(new GetAppointmentQuery(id)));
+  }
+
+  @Post(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    type: AppointmentResponseDto,
+    description: 'Cancelled; the bay and technician are free again (FR-8, BR-9)',
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description: 'VALIDATION_FAILED (id is not a UUID)',
+  })
+  @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'APPOINTMENT_NOT_FOUND' })
+  @ApiUnprocessableEntityResponse({
+    type: ErrorResponseDto,
+    description: 'APPOINTMENT_NOT_CANCELLABLE (already cancelled, BR-12)',
+  })
+  async cancel(@Param() { id }: IdParamDto): Promise<AppointmentResponseDto> {
+    await this.commands.execute(new CancelAppointmentCommand(id));
     return AppointmentResponseDto.from(await this.queries.execute(new GetAppointmentQuery(id)));
   }
 }

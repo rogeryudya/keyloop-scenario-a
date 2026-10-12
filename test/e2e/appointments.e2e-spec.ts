@@ -215,4 +215,64 @@ describe('Appointments (e2e)', () => {
       });
     });
   });
+
+  describe('POST /v1/appointments/:id/cancel', () => {
+    const book = async (overrides: Record<string, unknown> = {}): Promise<string> => {
+      const res = await http().post('/v1/appointments').send(booking(overrides)).expect(201);
+      return (res.body as { id: string }).id;
+    };
+    const cancel = (id: string) => http().post(`/v1/appointments/${id}/cancel`);
+
+    it('returns 200 with the cancelled appointment (FR-8)', async () => {
+      const id = await book();
+
+      const res = await cancel(id).expect(200);
+
+      expect(res.body).toMatchObject({ id, status: 'CANCELLED', cancelledAt: NOW });
+      const reread = await http().get(`/v1/appointments/${id}`).expect(200);
+      expect(reread.body).toMatchObject({ status: 'CANCELLED', cancelledAt: NOW });
+    });
+
+    it('frees the slot: availability shows it again and booking it succeeds (acceptance)', async () => {
+      // Hanoi has one bay, so a booking at 10:00 removes 10:00 from availability.
+      const startsAt = async (): Promise<string[]> => {
+        const res = await http()
+          .get(`/v1/dealerships/${HANOI}/availability`)
+          .query({ serviceTypeId: OIL_CHANGE, date: '2030-01-15' })
+          .expect(200);
+        return (res.body as { data: { start: string }[] }).data.map((s) => s.start);
+      };
+      const id = await book({ dealershipId: HANOI });
+      expect(await startsAt()).not.toContain('2030-01-15T10:00:00+07:00');
+
+      await cancel(id).expect(200);
+
+      expect(await startsAt()).toContain('2030-01-15T10:00:00+07:00');
+      await book({ dealershipId: HANOI });
+    });
+
+    it('returns 422 APPOINTMENT_NOT_CANCELLABLE when already cancelled (BR-12)', async () => {
+      const id = await book();
+      await cancel(id).expect(200);
+
+      const res = await cancel(id).expect(422);
+
+      expect((res.body as ErrorJson).error.code).toBe('APPOINTMENT_NOT_CANCELLABLE');
+    });
+
+    it('returns 404 APPOINTMENT_NOT_FOUND for an unknown id', async () => {
+      const res = await cancel('79000000-0000-4000-8000-000000000099').expect(404);
+
+      expect((res.body as ErrorJson).error.code).toBe('APPOINTMENT_NOT_FOUND');
+    });
+
+    it('returns 400 VALIDATION_FAILED for a malformed id', async () => {
+      const res = await cancel('not-a-uuid').expect(400);
+
+      expect((res.body as ErrorJson).error).toMatchObject({
+        code: 'VALIDATION_FAILED',
+        details: [{ field: 'id' }],
+      });
+    });
+  });
 });

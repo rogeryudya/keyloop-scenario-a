@@ -20,6 +20,7 @@ Unversioned: `/health`, `/docs`.
 | GET | `/v1/service-types` | List service types with durations (cursor pagination) | FR-10 | done |
 | POST | `/v1/appointments` | Book an appointment; bay and technician are allocated (201 + `Location`) | FR-1…FR-5 | done |
 | GET | `/v1/appointments/:id` | One appointment with linked dealership, bay, technician, service type, customer, vehicle | FR-6 | done |
+| POST | `/v1/appointments/:id/cancel` | Cancel a confirmed appointment; frees its bay and technician (200 + the updated appointment) | FR-8 | done |
 
 ### Module error codes
 | Status | `code` | Endpoint | When |
@@ -28,7 +29,8 @@ Unversioned: `/health`, `/docs`.
 | 404 | `SERVICE_TYPE_NOT_FOUND` | `GET …/availability`, `POST /v1/appointments` | No service type with that id (BR-13) |
 | 404 | `CUSTOMER_NOT_FOUND` | `POST /v1/appointments` | No customer with that id (BR-13) |
 | 404 | `VEHICLE_NOT_FOUND` | `POST /v1/appointments` | No vehicle with that id (BR-13) |
-| 404 | `APPOINTMENT_NOT_FOUND` | `GET /v1/appointments/:id` | No appointment with that id |
+| 404 | `APPOINTMENT_NOT_FOUND` | `GET /v1/appointments/:id`, `POST …/:id/cancel` | No appointment with that id |
+| 422 | `APPOINTMENT_NOT_CANCELLABLE` | `POST /v1/appointments/:id/cancel` | The appointment is not `CONFIRMED` (already cancelled) (BR-12) |
 | 422 | `VEHICLE_NOT_OWNED_BY_CUSTOMER` | `POST /v1/appointments` | The vehicle belongs to another customer (BR-5) |
 | 422 | `APPOINTMENT_IN_PAST` | `POST /v1/appointments` | `start` is not after the current time (BR-3) |
 | 422 | `OUTSIDE_OPENING_HOURS` | `POST /v1/appointments` | `[start, start + duration)` doesn't fit in one day's opening hours, local time (BR-4) |
@@ -59,7 +61,7 @@ Record every API change here. Mark breaking changes clearly; they require a new 
 - v1: initial
 - v1 (M1): added `GET /v1/dealerships`, `GET /v1/dealerships/:id`, `GET /v1/service-types` (non-breaking)
 - v1 (M2): added `POST /v1/appointments`, `GET /v1/appointments/:id` (non-breaking)
-- v1 (M3): added `GET /v1/dealerships/:id/availability` (non-breaking)
+- v1 (M3): added `GET /v1/dealerships/:id/availability`, `POST /v1/appointments/:id/cancel` (non-breaking)
 
 ## Examples
 
@@ -195,3 +197,10 @@ Response `200`
 ```
 Times are returned in UTC; convert with `dealership.timeZone` for display.
 Response `404`: `APPOINTMENT_NOT_FOUND`. A malformed id → `400 VALIDATION_FAILED` with `details[0].field = "id"`.
+
+### POST /v1/appointments/:id/cancel
+No body. Response `200`: the appointment in the `GET /v1/appointments/:id` shape, with
+`"status": "CANCELLED"` and `"cancelledAt"` set. Its bay and technician are free again at once, so the slot
+reappears in availability and can be booked (BR-9).
+Errors: `404 APPOINTMENT_NOT_FOUND`, `422 APPOINTMENT_NOT_CANCELLABLE` (already cancelled, BR-12),
+`400 VALIDATION_FAILED` for a malformed id.

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CancelAppointmentHandler } from './application/commands/cancel-appointment/cancel-appointment.handler';
 import { CreateAppointmentHandler } from './application/commands/create-appointment/create-appointment.handler';
 import { AppointmentReadModel } from './application/ports/appointment-read-model';
 import { BookableResources } from './application/ports/bookable-resources';
@@ -18,6 +19,7 @@ import { AvailabilityController } from './presentation/availability.controller';
   controllers: [AppointmentController, AvailabilityController],
   providers: [
     CreateAppointmentHandler,
+    CancelAppointmentHandler,
     GetAppointmentHandler,
     GetAvailabilityHandler,
     { provide: AppointmentRepository, useClass: PrismaAppointmentRepository },
