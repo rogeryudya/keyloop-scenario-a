@@ -11,7 +11,7 @@
 - [x] Prisma schema exactly per `docs/data-dictionary.md` (tables, types, checks, composite FKs, indexes)
 - [x] Migration raw SQL for what Prisma can't express: `btree_gist` + the two **exclusion constraints**, partial index, `lower(email)` unique index, check constraints (see `docs/data-dictionary.md`)
 - [x] ADR 0006 (0005 was taken by the layer-boundary lint ADR): data model and how double-booking is prevented (exclusion constraint vs locking vs serializable)
-- [ ] Seed script `pnpm db:seed` loading `prisma/seed/data.json` per the rules in `prisma/seed/README.md` (idempotent, demo appointments relative to "tomorrow" in dealership time zone, validated before insert)
+- [x] Seed script `pnpm db:seed` loading `prisma/seed/data.json` per the rules in `prisma/seed/README.md` (idempotent, demo appointments relative to "tomorrow" in dealership time zone, validated before insert)
 - [ ] `dealerships` module: queries + endpoints `GET /v1/dealerships`, `GET /v1/dealerships/:id`, `GET /v1/service-types` (FR-10), cursor pagination on lists
 - [ ] Integration tests: exclusion constraint rejects an overlapping insert for the same bay / technician, accepts back-to-back and cancelled overlaps
 - [ ] `docs/api.md` updated
@@ -24,3 +24,4 @@
 ## Notes
 - Prisma can't express exclusion constraints or range types; keep them in the SQL migration and document that the Prisma schema isn't the whole truth.
 - `Appointment.create` enforces BR-1, BR-3 (and BR-12 on `cancel`). BR-4 (opening hours) is checked in the M2 booking handler via `OpeningHours.contains`, because `appointments` must not import the `dealerships` domain.
+- Seed runs via `tsx` (`prisma.config.ts`): plain `node` type stripping can't load the generated Prisma client (extensionless imports) or domain classes (parameter properties). Validation/time-zone logic is in `prisma/seed/seed-plan.ts` (unit-tested in `test/seed/`). `zonedToUtc` there is what M3 availability will need; move it to `shared/domain` then rather than duplicating.

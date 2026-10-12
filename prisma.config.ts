@@ -11,7 +11,7 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
-    seed: 'node prisma/seed.ts',
+    seed: 'tsx prisma/seed.ts',
   },
   // Optional so `prisma generate` works without a DB; migrate commands fail clearly if it's missing.
   datasource: { url: process.env.DATABASE_URL },
