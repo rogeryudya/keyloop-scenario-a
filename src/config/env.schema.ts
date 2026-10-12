@@ -52,6 +52,19 @@ export class EnvironmentVariables {
     { message: 'AWS_ENDPOINT_URL must be an http(s) URL' },
   )
   AWS_ENDPOINT_URL?: string;
+
+  /** OTLP/HTTP collector (otel-lgtm locally: http://localhost:4318). Unset disables tracing. Read by the OTel SDK. */
+  @IsOptional()
+  @IsUrl(
+    { require_tld: false, protocols: ['http', 'https'], require_protocol: true },
+    { message: 'OTEL_EXPORTER_OTLP_ENDPOINT must be an http(s) URL' },
+  )
+  OTEL_EXPORTER_OTLP_ENDPOINT?: string;
+
+  /** Service name on traces (default keyloop-api). Read by the OTel SDK. */
+  @IsOptional()
+  @IsString()
+  OTEL_SERVICE_NAME?: string;
 }
 
 export class InvalidEnvironmentError extends Error {

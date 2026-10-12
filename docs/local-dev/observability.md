@@ -39,18 +39,20 @@ When this profile is on, point `OTEL_EXPORTER_OTLP_ENDPOINT` at the agent instea
 ## What we instrument
 | Signal | How | What you see |
 |---|---|---|
-| Traces | `@opentelemetry/sdk-node` + auto-instrumentations (http, express/nest, pg/prisma) | One trace per request: controller → handler → SQL |
-| Use-case spans | Manual span per command/query handler: `command CreateAppointment` with attributes (`appointment.id`, outcome) | Business-level steps inside the trace |
+| Traces | `@opentelemetry/sdk-node` + `http` and `pg` instrumentations (Prisma queries go through `pg`) | One trace per request: HTTP → handler → SQL |
+| Use-case spans | Span per command/query handler, e.g. `command CreateAppointment`, with `cqrs.kind`, `cqrs.name`, `outcome` (`success`, `invalid`, `not_found`, `conflict`, `rejected`, `error`) and `error.code` for a business rejection ([ADR-0008](../decisions/0008-handler-tracing-bus-wrapper.md)) | Business-level steps inside the trace |
 | Logs | Structured JSON (pino) with `trace_id`, `span_id`, `request_id` | Jump from a log line to its trace in Grafana |
 | Metrics | Request rate/latency/errors (auto) + a few business counters (`appointments_created_total`, `appointment_conflicts_total`) | Dashboards |
 
 Rules:
-- Tracing is initialised in `src/instrumentation.ts`, loaded **before** Nest (`node -r ./dist/instrumentation.js` or the first import in `main.ts`). Otherwise auto-instrumentation misses modules.
+- Tracing is initialised in `src/instrumentation.ts`, the first import in `main.ts`, so it patches modules before Nest and Prisma load them. It is **on only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set** (`.env.example` points at otel-lgtm; Compose sets it for `api`). `OTEL_SDK_DISABLED=true` turns it off. `/health` is not traced.
+- No Express/Nest auto-instrumentation: Nest 12 is ESM-only and loads express outside the require hook, so the HTTP root span is named by method only (`POST`). Filter by `span.cqrs.name` or `span.outcome` instead.
+- On SIGTERM/SIGINT the app closes, then flushes pending spans before exiting.
 - The handler span wrapper is a cross-cutting concern: a small decorator/interceptor, not code inside each handler (see `../architecture/application.md`).
 - Never put PII, secrets or full request bodies into span attributes or logs.
-- Telemetry is disabled in unit tests (no exporter configured) so tests stay fast.
+- Telemetry is disabled in tests (no endpoint), so tests stay fast. `handler-tracing.spec.ts` asserts handler spans with an in-memory exporter.
 
 ## Observing while testing
-- **Manual / exploratory:** run the app locally, hit endpoints (Swagger or `.http` files), open Grafana → Explore → Tempo, filter by `service.name=keyloop-api`. Each request shows the handler span and the SQL statements, which is a good way to spot N+1 queries or missing transactions.
+- **Manual / exploratory:** run the app locally, hit endpoints (Swagger or `.http` files), open Grafana (http://localhost:3001) → Explore → Tempo, and query e.g. `{resource.service.name="keyloop-api" && span.outcome="conflict"}`. Each request shows the handler span and the SQL statements, which is a good way to spot N+1 queries or missing transactions.
 - **Automated (optional, for critical flows):** an integration test can register an `InMemorySpanExporter` and assert that, e.g., `command CreateAppointment` produced a span with `outcome=conflict` on a double booking. Use sparingly; it is a test of instrumentation, not of business logic.
 - **Request correlation:** e2e tests can assert that responses carry an `x-request-id` header and that error responses include the same id in logs.

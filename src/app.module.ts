@@ -8,6 +8,7 @@ import { DealershipsModule } from './modules/dealerships/dealerships.module';
 import { ClockModule } from './shared/infrastructure/clock/clock.module';
 import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
 import { TransactionsModule } from './shared/infrastructure/prisma/transactions.module';
+import { TracingModule } from './shared/infrastructure/tracing/tracing.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TransactionsModule } from './shared/infrastructure/prisma/transactions.
     ClockModule,
     // Registers CommandBus/QueryBus/EventBus globally; feature modules only declare their handlers.
     CqrsModule.forRoot(),
+    TracingModule,
     DealershipsModule,
     CustomersModule,
     AppointmentsModule,

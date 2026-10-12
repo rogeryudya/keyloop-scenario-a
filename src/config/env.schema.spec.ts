@@ -92,6 +92,26 @@ describe('validateEnv', () => {
     },
   );
 
+  it('accepts an OTLP endpoint and service name', () => {
+    const env = validateEnv({
+      DATABASE_URL: DB_URL,
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://otel-lgtm:4318',
+      OTEL_SERVICE_NAME: 'keyloop-api',
+    });
+
+    expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe('http://otel-lgtm:4318');
+    expect(env.OTEL_SERVICE_NAME).toBe('keyloop-api');
+  });
+
+  it.each(['localhost:4318', 'grpc://otel:4317'])(
+    'rejects OTEL_EXPORTER_OTLP_ENDPOINT %s',
+    (url) => {
+      expect(problemsOf({ DATABASE_URL: DB_URL, OTEL_EXPORTER_OTLP_ENDPOINT: url }).join()).toMatch(
+        /OTEL_EXPORTER_OTLP_ENDPOINT/,
+      );
+    },
+  );
+
   it.each(['mysql://u:p@h/db', 'localhost:5432', 'postgres://'])(
     'rejects non-postgres DATABASE_URL %s',
     (url) => {

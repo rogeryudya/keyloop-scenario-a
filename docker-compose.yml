@@ -99,9 +99,13 @@ services:
       <<: *aws-env
       PORT: '3000'
       DB_SECRET_ID: keyloop/docker/db
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
+      OTEL_SERVICE_NAME: keyloop-api
     depends_on:
       migrate:
         condition: service_completed_successfully
+      otel-lgtm:
+        condition: service_started
     # Repeats the image HEALTHCHECK: Podman drops HEALTHCHECK when it builds OCI-format images.
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/health > /dev/null || exit 1']
