@@ -1,4 +1,4 @@
-import { BusinessRuleError, ConflictError } from '../../../shared/domain/errors';
+import { BusinessRuleError, ConflictError, NotFoundError } from '../../../shared/domain/errors';
 
 /** BR-3. */
 export class AppointmentInPastError extends BusinessRuleError {
@@ -6,6 +6,59 @@ export class AppointmentInPastError extends BusinessRuleError {
     super('APPOINTMENT_IN_PAST', 'Appointment start time must be in the future', [
       { field: 'start', issue: 'must be in the future' },
     ]);
+  }
+}
+
+/** BR-4. */
+export class OutsideOpeningHoursError extends BusinessRuleError {
+  constructor() {
+    super(
+      'OUTSIDE_OPENING_HOURS',
+      "The appointment must fall within the dealership's opening hours",
+      [{ field: 'start', issue: 'service would not fit within opening hours on that day' }],
+    );
+  }
+}
+
+/** BR-5. */
+export class VehicleNotOwnedByCustomerError extends BusinessRuleError {
+  constructor() {
+    super('VEHICLE_NOT_OWNED_BY_CUSTOMER', 'The vehicle does not belong to the customer', [
+      { field: 'vehicleId', issue: 'not owned by the given customer' },
+    ]);
+  }
+}
+
+/** BR-13: a booking references a dealership, service type, customer or vehicle that doesn't exist. */
+export class BookingReferenceNotFoundError extends NotFoundError {
+  private constructor(code: string, what: string, field: string, id: string) {
+    super(code, `${what} not found`, [{ field, issue: `no ${what.toLowerCase()} ${id}` }]);
+  }
+
+  static dealership(id: string): BookingReferenceNotFoundError {
+    return new BookingReferenceNotFoundError(
+      'DEALERSHIP_NOT_FOUND',
+      'Dealership',
+      'dealershipId',
+      id,
+    );
+  }
+
+  static serviceType(id: string): BookingReferenceNotFoundError {
+    return new BookingReferenceNotFoundError(
+      'SERVICE_TYPE_NOT_FOUND',
+      'Service type',
+      'serviceTypeId',
+      id,
+    );
+  }
+
+  static customer(id: string): BookingReferenceNotFoundError {
+    return new BookingReferenceNotFoundError('CUSTOMER_NOT_FOUND', 'Customer', 'customerId', id);
+  }
+
+  static vehicle(id: string): BookingReferenceNotFoundError {
+    return new BookingReferenceNotFoundError('VEHICLE_NOT_FOUND', 'Vehicle', 'vehicleId', id);
   }
 }
 

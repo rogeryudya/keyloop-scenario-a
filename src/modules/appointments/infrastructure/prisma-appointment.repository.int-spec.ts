@@ -39,6 +39,7 @@ const LAN = {
 
 const BOOKED_AT = new Date('2030-01-01T00:00:00.000Z');
 
+/** Built with `restore`: these tests place slots at day edges, outside opening hours on purpose. */
 const anAppointment = (input: {
   start: string;
   minutes?: number;
@@ -47,16 +48,17 @@ const anAppointment = (input: {
   dealership?: string;
   who?: typeof SOMSAK;
 }): Appointment =>
-  Appointment.create({
+  Appointment.restore({
     id: randomUUID(),
     dealershipId: input.dealership ?? BANGKOK,
     serviceBayId: input.bay ?? BAY_1,
     technicianId: input.technician ?? ANONG,
     serviceTypeId: OIL_CHANGE,
     ...(input.who ?? SOMSAK),
-    start: new Date(input.start),
-    durationMinutes: input.minutes ?? 60,
-    now: BOOKED_AT,
+    slot: TimeSlot.fromStartAndDuration(new Date(input.start), input.minutes ?? 60),
+    status: AppointmentStatus.Confirmed,
+    createdAt: BOOKED_AT,
+    cancelledAt: null,
   });
 
 describe('PrismaAppointmentRepository (int)', () => {

@@ -1,4 +1,5 @@
 import { Appointment as AppointmentRow } from '../../../generated/prisma/client';
+import { OpeningHours } from '../../../shared/domain/opening-hours';
 import { AppointmentStatus } from '../domain/appointment-status';
 import { Appointment } from '../domain/appointment.entity';
 import { AppointmentMapper } from './appointment.mapper';
@@ -45,6 +46,11 @@ describe('AppointmentMapper', () => {
       vehicleId: row.vehicleId,
       start: row.startAt,
       durationMinutes: 30,
+      openingHours: OpeningHours.of({
+        opensAt: '08:00',
+        closesAt: '18:00',
+        timeZone: 'Asia/Bangkok',
+      }),
       now: row.createdAt,
     });
 

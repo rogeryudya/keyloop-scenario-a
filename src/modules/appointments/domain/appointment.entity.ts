@@ -1,6 +1,11 @@
+import { OpeningHours } from '../../../shared/domain/opening-hours';
 import { TimeSlot } from '../../../shared/domain/time-slot';
 import { AppointmentStatus } from './appointment-status';
-import { AppointmentInPastError, AppointmentNotCancellableError } from './appointment.errors';
+import {
+  AppointmentInPastError,
+  AppointmentNotCancellableError,
+  OutsideOpeningHoursError,
+} from './appointment.errors';
 
 export interface AppointmentProps {
   readonly id: string;
@@ -28,6 +33,8 @@ export interface CreateAppointmentInput {
   readonly start: Date;
   /** The service type's `durationMinutes`. */
   readonly durationMinutes: number;
+  /** The dealership's opening hours (BR-4). */
+  readonly openingHours: OpeningHours;
   readonly now: Date;
 }
 
@@ -35,9 +42,9 @@ export class Appointment {
   private constructor(private props: AppointmentProps) {}
 
   static create(input: CreateAppointmentInput): Appointment {
-    const { start, durationMinutes, now, ...ids } = input;
+    const { start, durationMinutes, openingHours, now, ...ids } = input;
     const slot = TimeSlot.fromStartAndDuration(start, durationMinutes); // BR-1
-    if (slot.start.getTime() <= now.getTime()) throw new AppointmentInPastError(); // BR-3
+    Appointment.assertBookableSlot(slot, openingHours, now);
     return new Appointment({
       ...ids,
       slot,
@@ -45,6 +52,15 @@ export class Appointment {
       createdAt: new Date(now.getTime()),
       cancelledAt: null,
     });
+  }
+
+  /**
+   * BR-3 and BR-4. `create` runs it too; handlers call it first so these 422s win over
+   * resource-availability errors.
+   */
+  static assertBookableSlot(slot: TimeSlot, openingHours: OpeningHours, now: Date): void {
+    if (slot.start.getTime() <= now.getTime()) throw new AppointmentInPastError(); // BR-3
+    if (!openingHours.contains(slot)) throw new OutsideOpeningHoursError(); // BR-4
   }
 
   /** Rebuilds from storage; creation rules are skipped because stored data was valid when written. */
