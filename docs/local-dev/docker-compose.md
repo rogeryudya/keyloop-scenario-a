@@ -87,19 +87,18 @@ services:
     profiles: ["app"]
     build: { context: ., target: runtime }
     ports: ["3000:3000"]
-    environment: { <<: *aws-env, PORT: "3000", DB_SECRET_ID: keyloop/docker/db, OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318, OTEL_SERVICE_NAME: keyloop-api, OTEL_METRIC_EXPORT_INTERVAL: "10000" }
+    environment: { <<: *aws-env, PORT: "3000", DB_SECRET_ID: keyloop/docker/db, OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT_DOCKER:-http://otel-lgtm:4318}, OTEL_SERVICE_NAME: keyloop-api, OTEL_METRIC_EXPORT_INTERVAL: "10000" }
     depends_on: { migrate: { condition: service_completed_successfully }, otel-lgtm: { condition: service_started } }
     healthcheck: { test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health > /dev/null || exit 1"], interval: 5s, retries: 20 }
 
   # ---------- optional (profile: datadog) ----------
   datadog-agent:
     profiles: ["datadog"]
-    image: datadog/agent:<pinned>
-    environment:
-      DD_API_KEY: ${DD_API_KEY:?set DD_API_KEY to use the datadog profile}
-      DD_SITE: ${DD_SITE:-datadoghq.com}
-      DD_APM_ENABLED: "true"
-      DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT: 0.0.0.0:4318
+    image: datadog/agent:7.83.3
+    environment:   # DD_API_KEY: ${DD_API_KEY:-} (not :? — that would break every compose command without the key)
+      { DD_API_KEY: ${DD_API_KEY:-}, DD_SITE: ${DD_SITE:-datadoghq.com}, DD_ENV: local, DD_APM_ENABLED: "true", DD_LOGS_ENABLED: "true",
+        DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT: 0.0.0.0:4318, DD_OTLP_CONFIG_LOGS_ENABLED: "true" }
+    ports: ["4319:4318"]   # usage: observability.md › Send telemetry to Datadog
 
 volumes:
   floci-data:

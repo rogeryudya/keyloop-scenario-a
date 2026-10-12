@@ -22,19 +22,44 @@ So: default to OTel + LGTM. Datadog is an optional Compose profile (`docker comp
 ```
 Grafana includes Tempo (traces), Loki (logs) and Prometheus (metrics), pre-wired.
 
-Optional Datadog profile:
+Optional Datadog profile (the real file is the root `docker-compose.yml`):
 ```yaml
   datadog-agent:
-    image: datadog/agent:<pinned-version>
+    image: datadog/agent:7.83.3
     profiles: ["datadog"]
     environment:
-      DD_API_KEY: ${DD_API_KEY}
-      DD_SITE: datadoghq.eu        # or datadoghq.com
+      DD_API_KEY: ${DD_API_KEY:-}            # yours; the agent won't forward without it
+      DD_SITE: ${DD_SITE:-datadoghq.com}     # e.g. datadoghq.eu, us5.datadoghq.com
+      DD_ENV: local
       DD_APM_ENABLED: "true"
+      DD_LOGS_ENABLED: "true"
       DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT: 0.0.0.0:4318
-    ports: ["8126:8126"]
+      DD_OTLP_CONFIG_LOGS_ENABLED: "true"
+    ports: ["4319:4318"]                     # otel-lgtm owns host 4318
 ```
-When this profile is on, point `OTEL_EXPORTER_OTLP_ENDPOINT` at the agent instead of otel-lgtm (only one can own 4318).
+
+### Send telemetry to Datadog
+The app code doesn't change; only the OTLP endpoint does. Traces, metrics and logs all go through the agent's OTLP receiver.
+
+```bash
+# Full stack in Docker
+export DD_API_KEY=<your key>   DD_SITE=datadoghq.com   # trial account works
+OTEL_EXPORTER_OTLP_ENDPOINT_DOCKER=http://datadog-agent:4318 \
+  docker compose --profile app --profile datadog up --build -d
+
+# Dev mode (API on the host): set in .env, then restart the API
+#   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4319
+DD_API_KEY=<your key> docker compose --profile datadog up -d datadog-agent
+```
+Then in Datadog: **APM → Traces** (`service:keyloop-api`, `env:local`), **Logs** (`service:keyloop-api`, then use the
+`trace_id` to jump to the trace), **Metrics → Explorer** (`appointment_rejections` by `reason`). Switch back by
+dropping the variable: `docker compose --profile app up -d api`.
+
+`OTEL_EXPORTER_OTLP_ENDPOINT_DOCKER` is a separate variable on purpose: Compose reads `.env` for substitution, and
+the host value there (`localhost:4318`) would be wrong inside the container.
+
+Verified locally with a dummy key (the full trial-key check is still pending, see M5 notes): the agent's OTLP
+receiver runs, the app exports to it without errors, and the agent tries to forward the logs (403 with the dummy key).
 
 ## What we instrument
 | Signal | How | What you see |
