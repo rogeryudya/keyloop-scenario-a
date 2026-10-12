@@ -9,3 +9,20 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+  # Base image in the Dockerfile and the pinned images in docker-compose.yml.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+  # Provider versions and lock files.
+  - package-ecosystem: terraform
+    directories:
+      - /infra/envs/local
+      - /infra/envs/aws-dev
+      - /infra/modules/database
+    schedule:
+      interval: weekly
