@@ -28,7 +28,8 @@
     "test:int": "node --experimental-vm-modules --disable-warning=ExperimentalWarning node_modules/jest/bin/jest.js --selectProjects int --runInBand",
     "test:e2e": "node --experimental-vm-modules --disable-warning=ExperimentalWarning node_modules/jest/bin/jest.js --selectProjects e2e --runInBand",
     "test:cov": "node --experimental-vm-modules --disable-warning=ExperimentalWarning node_modules/jest/bin/jest.js --selectProjects unit --coverage",
-    "test:all": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:int && pnpm test:e2e"
+    "test:all": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:int && pnpm test:e2e",
+    "load:booking": "tsx scripts/load/booking-load.ts"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.1150.0",
