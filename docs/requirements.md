@@ -72,6 +72,7 @@ Use these exact terms in code (class names, table names, endpoints).
 | **Vehicle** | A car owned by a customer, identified by VIN (+ registration) | `customers` |
 | **Appointment** | A confirmed reservation of one bay + one technician for a vehicle, service type and time interval. Status `CONFIRMED` or `CANCELLED` | `appointments` |
 | **TimeSlot** | Value object: half-open interval `[start, end)` with `overlaps()` | `shared/domain` |
+| **OpeningHours** | Value object: a dealership's daily window `opensAt`–`closesAt` in its IANA time zone, with `contains(slot)` | `shared/domain` |
 | **Availability** | The start times at which a service type can currently be booked at a dealership | `appointments` |
 
 ## 6. Assumptions
@@ -87,6 +88,7 @@ Made where the brief is silent. Format: `A-n: assumption — reason`.
 - A-8: Check and reservation happen in one transaction; there is no "hold/pending" state. — "Before confirming, check" → atomic check-and-confirm.
 - A-9: Availability (FR-7) offers start times on a 15-minute grid. — A reasonable default granularity.
 - A-10: There are no external systems to call, so WireMock isn't needed for this scope.
+- A-11: Opening hours are whole minutes (`HH:mm`, `00:00`–`23:59`), and an appointment must start and end on the same local day; ending exactly at closing time is allowed. — Follows from A-6 (one daily window, no overnight opening) and BR-2 (half-open intervals).
 
 ## 7. Open questions
 For the interviewer. Don't block on them; the matching assumption applies until answered.
