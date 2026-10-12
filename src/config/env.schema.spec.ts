@@ -53,9 +53,44 @@ describe('validateEnv', () => {
     );
   });
 
-  it('accepts DB_SECRET_ID alone', () => {
-    expect(validateEnv({ DB_SECRET_ID: 'keyloop/local/db' }).DB_SECRET_ID).toBe('keyloop/local/db');
+  it('accepts DB_SECRET_ID with AWS_REGION and no DATABASE_URL', () => {
+    const env = validateEnv({ DB_SECRET_ID: 'keyloop/local/db', AWS_REGION: 'us-east-1' });
+
+    expect(env.DB_SECRET_ID).toBe('keyloop/local/db');
+    expect(env.AWS_REGION).toBe('us-east-1');
+    expect(env.AWS_ENDPOINT_URL).toBeUndefined();
   });
+
+  it('requires AWS_REGION when DB_SECRET_ID is set', () => {
+    expect(problemsOf({ DB_SECRET_ID: 'keyloop/local/db' })).toContain(
+      'AWS_REGION is required when DB_SECRET_ID is set',
+    );
+    expect(problemsOf({ DB_SECRET_ID: 'keyloop/local/db', AWS_REGION: '' })).toContain(
+      'AWS_REGION is required when DB_SECRET_ID is set',
+    );
+  });
+
+  it('does not require AWS_REGION with DATABASE_URL only', () => {
+    expect(() => validateEnv({ DATABASE_URL: DB_URL })).not.toThrow();
+  });
+
+  it.each(['http://localhost:4566', 'http://floci:4566', 'https://secretsmanager.example.com'])(
+    'accepts AWS_ENDPOINT_URL %s',
+    (url) => {
+      expect(validateEnv({ DATABASE_URL: DB_URL, AWS_ENDPOINT_URL: url }).AWS_ENDPOINT_URL).toBe(
+        url,
+      );
+    },
+  );
+
+  it.each(['localhost:4566', 'ftp://floci:4566', 'not a url'])(
+    'rejects AWS_ENDPOINT_URL %s',
+    (url) => {
+      expect(problemsOf({ DATABASE_URL: DB_URL, AWS_ENDPOINT_URL: url }).join()).toMatch(
+        /AWS_ENDPOINT_URL/,
+      );
+    },
+  );
 
   it.each(['mysql://u:p@h/db', 'localhost:5432', 'postgres://'])(
     'rejects non-postgres DATABASE_URL %s',

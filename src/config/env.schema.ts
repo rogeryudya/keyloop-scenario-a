@@ -4,6 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUrl,
   Matches,
   Max,
   Min,
@@ -32,12 +33,25 @@ export class EnvironmentVariables {
   @IsString()
   DB_SECRET_ID?: string;
 
-  /** Direct Postgres URL (tests, CI, and the temporary M0 dev DB). */
+  /** Direct Postgres URL (tests and CI). */
   @IsOptional()
   @Matches(/^postgres(ql)?:\/\/\S+$/, {
     message: 'DATABASE_URL must be a postgres:// or postgresql:// URL',
   })
   DATABASE_URL?: string;
+
+  /** AWS region for Secrets Manager. Required with DB_SECRET_ID. */
+  @IsOptional()
+  @IsString()
+  AWS_REGION?: string;
+
+  /** Custom AWS endpoint (floci locally: http://localhost:4566). Unset in real AWS. */
+  @IsOptional()
+  @IsUrl(
+    { require_tld: false, protocols: ['http', 'https'], require_protocol: true },
+    { message: 'AWS_ENDPOINT_URL must be an http(s) URL' },
+  )
+  AWS_ENDPOINT_URL?: string;
 }
 
 export class InvalidEnvironmentError extends Error {
@@ -61,6 +75,9 @@ export function validateEnv(raw: Record<string, string | undefined>): Environmen
   const problems = validateSync(env).flatMap((error) => Object.values(error.constraints ?? {}));
   if (isBlank(env.DB_SECRET_ID) && isBlank(env.DATABASE_URL)) {
     problems.push('one of DB_SECRET_ID or DATABASE_URL must be set');
+  }
+  if (!isBlank(env.DB_SECRET_ID) && isBlank(env.AWS_REGION)) {
+    problems.push('AWS_REGION is required when DB_SECRET_ID is set');
   }
   if (problems.length > 0) {
     throw new InvalidEnvironmentError(problems);

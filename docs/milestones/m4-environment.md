@@ -8,7 +8,7 @@
 - [x] Replace the temporary `postgres` Compose service with floci (RDS + Secrets Manager); pin all image versions (see `docs/local-dev/docker-compose.md`)
 - [x] Terraform `infra/modules/database` + `envs/local` (floci): RDS + RDS-format secrets; `pnpm infra:up|plan|down` via the Terraform container (see `docs/infrastructure.md`)
 - [x] `infra/envs/aws-dev` skeleton using the same module; passes `terraform validate`
-- [ ] `DbCredentialsProvider`: Secrets Manager mode (`DB_SECRET_ID`); `db:migrate`/`db:seed` via `with-db-url`
+- [x] `DbCredentialsProvider`: Secrets Manager mode (`DB_SECRET_ID`); `db:migrate`/`db:seed` via `with-db-url`
 - [ ] Integration test: credential loading from floci Secrets Manager (incl. missing / malformed secret)
 - [ ] Multi-stage Dockerfile (`tools`, `runtime`) + Compose `app` profile: bootstrap → migrate/seed → api
 - [ ] CI: add `terraform` and `smoke` jobs per `docs/ci.md`; Dependabot config
@@ -23,5 +23,6 @@
 ## Notes
 - Risk: floci RDS through Terraform and the Docker socket on Windows are unverified. Spike these first; the fallback is in `docs/local-dev/aws-emulation.md`.
 - Spike (task 1): the Docker socket on Windows works. RDS through the **AWS API** (CLI) works: the instance is available in seconds, Postgres 17 runs via the image override, and the host (`localhost:7001`) and the Compose network (`floci:7001`) both reach it. State survives restarts, and `down -v` cleans up. Details in `docs/local-dev/aws-emulation.md`. RDS through **Terraform** works too (task 2): apply, a no-op re-apply, destroy, and re-create all succeed, and both secrets log in to Postgres 17.11.
-- Transitional gap: `pnpm start:dev` can't read `DB_SECRET_ID` until task 4. Until then, after `pnpm infra:up`, set `DATABASE_URL` from the `keyloop/local/db` secret (`aws secretsmanager get-secret-value --secret-id keyloop/local/db --endpoint-url http://localhost:4566`). Tests are unaffected (Testcontainers).
+- Task 4: dev-mode acceptance verified (`infra:up` → `db:migrate` → `db:seed` → API → `/health` 200 with `db: up`, credentials from floci Secrets Manager). Existing local `.env` files must be updated from `.env.example`: `DB_SECRET_ID`, `AWS_REGION`, `AWS_ENDPOINT_URL` and the dummy AWS keys replace the old `DATABASE_URL`.
+- New dependency: `@aws-sdk/client-secrets-manager` (official SDK to read the DB secret; honours a custom endpoint for floci).
 - The old `keyloop_postgres-data` volume from M0–M3 is orphaned; remove it with `docker volume rm keyloop_postgres-data` when you no longer need it.

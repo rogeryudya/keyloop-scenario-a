@@ -67,12 +67,18 @@ bootstrap (main.ts)
       else                 → fail fast
  → build Postgres URL → construct PrismaClient with it
 ```
-- Lives in `src/config/` + `shared/infrastructure/prisma/`. Nothing else knows about Secrets Manager.
-- The secret is fetched **once at startup** and never logged. Rotation is out of scope; document it as a known limitation.
-- AWS SDK v3 picks up `AWS_ENDPOINT_URL` automatically, so there is no `if local` branch in code.
+- Lives in `src/config/` + `shared/infrastructure/prisma/`. Nothing else knows about Secrets Manager:
+  - `secret-source.ts`: the `SecretSource` port and its `SecretsManagerSecretSource` adapter (connect timeout 3 s, request timeout 5 s).
+  - `rds-secret.ts`: parses and validates the secret (`host`, `port`, `username`, `password`, `dbname`; `engine` is optional but must be postgres) and builds a percent-encoded URL.
+  - `db-credentials.provider.ts`: picks the mode and caches the result.
+- The secret is fetched **once at startup** and never logged. Errors name the secret id and the bad field, never values. Rotation is out of scope (known limitation).
+- `AWS_REGION` is required when `DB_SECRET_ID` is set (startup validation). Region and `AWS_ENDPOINT_URL` are read by
+  `AppConfig` and passed to the SDK client; credentials come from the standard AWS chain (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`
+  locally, the task role in AWS). With no endpoint set the SDK talks to real AWS, so there is no `if local` branch.
+- Failures abort the boot with a clear message: secret not found, Secrets Manager unreachable, or secret malformed.
 
 ## Migrations and seed
-Prisma CLI needs `DATABASE_URL` in the environment. `pnpm db:migrate` / `pnpm db:seed` run `scripts/local/with-db-url.ts`, which resolves the secret the same way the app does, sets `DATABASE_URL` for the child process, then runs the Prisma command.
+Prisma CLI needs `DATABASE_URL` in the environment. `pnpm db:migrate` / `db:migrate:dev` / `db:seed` run `scripts/local/with-db-url.ts <prisma args>`, which loads `.env`, resolves the URL with the same `DbCredentialsProvider` as the app, sets `DATABASE_URL` for the child process only, then runs the Prisma CLI. The seed (`prisma/seed.ts`) reads that `DATABASE_URL`.
 
 ## Why not use floci for automated tests?
 Tests use a plain Postgres container instead (see `../testing/integration-and-e2e.md`): faster start, a fixed port, no Docker-socket dependency, and it runs the same in CI. The Secrets Manager credential path is covered by one dedicated integration test against floci.

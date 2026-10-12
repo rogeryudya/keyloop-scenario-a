@@ -19,4 +19,12 @@ export class AppConfig {
   get databaseUrl(): string | undefined {
     return this.env.DATABASE_URL;
   }
+
+  get awsRegion(): string | undefined {
+    return this.env.AWS_REGION;
+  }
+
+  get awsEndpointUrl(): string | undefined {
+    return this.env.AWS_ENDPOINT_URL;
+  }
 }
