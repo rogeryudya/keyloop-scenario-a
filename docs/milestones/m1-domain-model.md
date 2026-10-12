@@ -1,6 +1,6 @@
 # M1 — Domain model and reference data
 
-**Status:** `in-progress`
+**Status:** `done`
 **Goal:** the scheduling domain modelled in code and in Postgres, with realistic seed data and read endpoints for reference data.
 **Requirements:** FR-10, BR-1, BR-2, BR-4 (value objects), NFR-6 (DB constraints)
 
@@ -14,7 +14,7 @@
 - [x] Seed script `pnpm db:seed` loading `prisma/seed/data.json` per the rules in `prisma/seed/README.md` (idempotent, demo appointments relative to "tomorrow" in dealership time zone, validated before insert)
 - [x] `dealerships` module: queries + endpoints `GET /v1/dealerships`, `GET /v1/dealerships/:id`, `GET /v1/service-types` (FR-10), cursor pagination on lists
 - [x] Integration tests: exclusion constraint rejects an overlapping insert for the same bay / technician, accepts back-to-back and cancelled overlaps
-- [ ] `docs/api.md` updated
+- [x] `docs/api.md` updated
 
 ## Acceptance criteria
 - `pnpm db:migrate && pnpm db:seed` run clean twice in a row

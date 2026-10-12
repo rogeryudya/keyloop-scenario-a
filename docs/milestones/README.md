@@ -2,12 +2,12 @@
 
 Index and progress tracker. Each milestone has its own file with goal, tasks, acceptance criteria and notes.
 
-**Current milestone: [M1 — Domain model and reference data](m1-domain-model.md)**
+**Current milestone: [M2 — Booking with availability check](m2-booking.md)**
 
 | # | Milestone | Covers | Status |
 |---|---|---|---|
 | M0 | [Foundation](m0-foundation.md) | Scaffold, architecture skeleton, test infra, basic CI | `done` |
-| M1 | [Domain model and reference data](m1-domain-model.md) | TimeSlot, OpeningHours, Appointment, schema + exclusion constraints, seed, FR-10 | `in-progress` |
+| M1 | [Domain model and reference data](m1-domain-model.md) | TimeSlot, OpeningHours, Appointment, schema + exclusion constraints, seed, FR-10 | `done` |
 | M2 | [Booking with availability check](m2-booking.md) | **FR-1 … FR-6**: the core of the brief, incl. concurrency | `todo` |
 | M3 | [Availability query and lifecycle](m3-availability-lifecycle.md) | FR-7 availability, FR-8 cancel, FR-9 list, FR-11 idempotency | `todo` |
 | M4 | [AWS-like environment and full CI](m4-environment.md) | floci + Terraform, Secrets Manager, full-stack Compose, Bugbot | `todo` |
