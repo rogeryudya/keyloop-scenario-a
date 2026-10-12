@@ -28,7 +28,7 @@ The API reaches floci's RDS proxy under a different host depending on where it r
 `bootstrap` writes both (same port, same credentials), so switching modes needs no re-bootstrap.
 
 ## Skeleton
-Dependency images are pinned (floci `2.2.0`, otel-lgtm `0.36.0`, terraform `1.16.5`); the `bootstrap`/`migrate`/`api` services below land in later M4 tasks.
+Images are pinned (floci `2.2.0`, otel-lgtm `0.36.0`, terraform `1.16.5`, node `24.21.0-alpine3.24`). The real file is the root `docker-compose.yml`; this is a condensed view.
 No WireMock service: the brief has no external HTTP dependencies (requirements A-10).
 
 ```yaml
@@ -63,7 +63,7 @@ services:
     ports: ["3001:3000", "4317:4317", "4318:4318"]
 
   # ---------- full stack (profile: app) ----------
-  terraform:                                    # used by `pnpm infra:*` (profile: tools)
+  terraform:                                    # used by `pnpm infra:*` (profile: tools); shares x-terraform with bootstrap
     profiles: ["tools"]
     image: hashicorp/terraform:1.16.5
     working_dir: /infra/envs/local
@@ -72,19 +72,14 @@ services:
     environment: { <<: *aws-env, TF_DATA_DIR: /tf-data, TF_IN_AUTOMATION: "1" }
     depends_on: { floci: { condition: service_healthy } }
 
-  bootstrap:                                    # same image, one-shot apply in full-stack mode
+  bootstrap:                                    # same Terraform config, one-shot `up` in full-stack mode
     profiles: ["app"]
-    image: hashicorp/terraform:1.16.5
-    working_dir: /infra/envs/local
-    volumes: ["./infra:/infra", "tf-state:/infra/envs/local/state", "tf-data:/tf-data"]
-    entrypoint: ["sh", "/infra/scripts/terraform.sh", "up"]
-    environment: { <<: *aws-env }
-    depends_on: { floci: { condition: service_healthy } }
+    command: ["up"]
+    # ...rest identical to terraform (YAML anchor x-terraform)
 
-  migrate:
+  migrate:                                      # image CMD: pnpm db:migrate && pnpm db:seed
     profiles: ["app"]
     build: { context: ., target: tools }
-    command: ["sh", "-c", "pnpm db:migrate:deploy && pnpm db:seed"]
     environment: { <<: *aws-env, DB_SECRET_ID: keyloop/docker/db }
     depends_on: { bootstrap: { condition: service_completed_successfully } }
 
@@ -92,17 +87,9 @@ services:
     profiles: ["app"]
     build: { context: ., target: runtime }
     ports: ["3000:3000"]
-    environment:
-      <<: *aws-env
-      NODE_ENV: production
-      PORT: "3000"
-      DB_SECRET_ID: keyloop/docker/db
-      OTEL_SERVICE_NAME: keyloop-api
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
-    depends_on:
-      migrate: { condition: service_completed_successfully }
-      otel-lgtm: { condition: service_started }
-    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"], interval: 5s, retries: 20 }
+    environment: { <<: *aws-env, PORT: "3000", DB_SECRET_ID: keyloop/docker/db }   # OTEL_* added with tracing (M5)
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    healthcheck: { test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health > /dev/null || exit 1"], interval: 5s, retries: 20 }
 
   # ---------- optional (profile: datadog) ----------
   datadog-agent:
@@ -121,14 +108,25 @@ volumes:
 ```
 
 ## Dockerfile (multi-stage)
+Base image `node:24.21.0-alpine3.24` (pinned). pnpm comes from corepack, using the version in `packageManager`.
+
 | Stage | Contents | Used by |
 |---|---|---|
-| `deps` | `pnpm install --frozen-lockfile` | other stages |
-| `build` | `prisma generate` + `nest build` | `runtime` |
-| `tools` | full source + dev deps (Prisma CLI, scripts) | `migrate` |
-| `runtime` | `node:24-alpine`, prod deps + `dist/` + Prisma client, non-root user, `HEALTHCHECK` | `api` |
+| `deps` | `pnpm install --frozen-lockfile --ignore-scripts` (all deps) | `build` |
+| `build` | `prisma generate` + `nest build` | `tools`, `runtime` |
+| `tools` | full source + dev deps (Prisma CLI, tsx, scripts); CMD `pnpm db:migrate && pnpm db:seed`; user `node` | `migrate` |
+| `prod-deps` | `pnpm install --prod --frozen-lockfile --ignore-scripts` | `runtime` |
+| `runtime` | prod deps + `dist/`, non-root `node` user, `HEALTHCHECK` on `/health`, CMD `node dist/main` | `api` |
 
-The runtime image contains no dev dependencies, scripts or `.env`.
+The runtime image contains no dev dependencies, scripts, sources or `.env` (`.dockerignore` also excludes `infra/`, `docs/`, `.git`).
+Known size issue: it's about 560 MB, because pnpm installs `prisma` (CLI, Studio, TypeScript) as a resolved peer of
+`@prisma/client` even with `--prod`. Trimming it is a possible follow-up.
+
+### Podman
+On Podman (for example Podman Desktop on Windows behind the Docker CLI), BuildKit builders may fail to start
+(`crun: create /sys/fs/cgroup/docker: Permission denied`). Build with the classic API, which Podman serves through buildah:
+`DOCKER_BUILDKIT=0 docker compose --profile app up --build`. Podman also drops `HEALTHCHECK` from OCI-format images,
+which is why the `api` service repeats it in Compose.
 
 ## Rules
 - Pin every image version; never `:latest`.

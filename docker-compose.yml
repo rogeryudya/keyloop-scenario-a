@@ -1,5 +1,6 @@
-# Local dev dependencies. See docs/local-dev/docker-compose.md.
-# Dev mode: `docker compose up -d` starts floci (RDS + Secrets Manager) and otel-lgtm; the API runs on the host.
+# See docs/local-dev/docker-compose.md.
+# Dev mode:   `docker compose up -d` starts floci (RDS + Secrets Manager) and otel-lgtm; the API runs on the host.
+# Full stack: `docker compose --profile app up --build` adds bootstrap (Terraform) → migrate (+ seed) → api.
 # No WireMock: the brief has no external HTTP dependencies (A-10).
 name: keyloop # fixes the network name (keyloop_default) that floci attaches RDS containers to
 
@@ -8,6 +9,23 @@ x-aws-env: &aws-env # floci dummies, not secrets
   AWS_ACCESS_KEY_ID: test
   AWS_SECRET_ACCESS_KEY: test
   AWS_ENDPOINT_URL: http://floci:4566
+
+# Terraform on envs/local; entrypoint takes up | plan | down.
+x-terraform: &terraform
+  image: hashicorp/terraform:1.16.5
+  working_dir: /infra/envs/local
+  entrypoint: ['sh', '/infra/scripts/terraform.sh']
+  volumes:
+    - ./infra:/infra
+    - tf-state:/infra/envs/local/state
+    - tf-data:/tf-data
+  environment:
+    <<: *aws-env
+    TF_DATA_DIR: /tf-data # providers live in a volume, not in the bind-mounted source tree
+    TF_IN_AUTOMATION: '1'
+  depends_on:
+    floci:
+      condition: service_healthy
 
 services:
   # AWS emulation on :4566. RDS runs a real Postgres container (started via the Docker socket) behind a proxy on 7001-7099.
@@ -47,23 +65,49 @@ services:
       - '4317:4317'
       - '4318:4318'
 
-  # Terraform in a container for `pnpm infra:up|plan|down` (envs/local against floci).
+  # ---------- tools (profile: tools) ----------
+  # `pnpm infra:up|plan|down` → docker compose run --rm terraform <action>
   terraform:
+    <<: *terraform
     profiles: ['tools']
-    image: hashicorp/terraform:1.16.5
-    working_dir: /infra/envs/local
-    entrypoint: ['sh', '/infra/scripts/terraform.sh']
-    volumes:
-      - ./infra:/infra
-      - tf-state:/infra/envs/local/state
-      - tf-data:/tf-data
+
+  # ---------- full stack (profile: app) ----------
+  # One-shot: RDS + DB secrets in floci. Idempotent, shares state with `pnpm infra:up`.
+  bootstrap:
+    <<: *terraform
+    profiles: ['app']
+    command: ['up']
+
+  # One-shot: migrations + idempotent seed, credentials from the DB secret.
+  migrate:
+    profiles: ['app']
+    build: { context: ., target: tools }
     environment:
       <<: *aws-env
-      TF_DATA_DIR: /tf-data # providers live in a volume, not in the bind-mounted source tree
-      TF_IN_AUTOMATION: '1'
+      DB_SECRET_ID: keyloop/docker/db
     depends_on:
-      floci:
-        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+
+  api:
+    profiles: ['app']
+    build: { context: ., target: runtime }
+    ports:
+      - '3000:3000'
+    environment:
+      <<: *aws-env
+      PORT: '3000'
+      DB_SECRET_ID: keyloop/docker/db
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # Repeats the image HEALTHCHECK: Podman drops HEALTHCHECK when it builds OCI-format images.
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/health > /dev/null || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
 volumes:
   floci-data:

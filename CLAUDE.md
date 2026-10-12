@@ -19,6 +19,7 @@ pnpm install              # install deps (postinstall runs prisma generate)
 cp .env.example .env      # local config, validated at startup
 docker compose up -d      # dev deps: floci (RDS + Secrets Manager), otel-lgtm
 pnpm infra:up             # Terraform (in Docker) → RDS + DB secrets in floci; also infra:plan, infra:down
+docker compose --profile app up --build   # full stack in Docker (reviewer mode); Podman: prefix DOCKER_BUILDKIT=0
 pnpm db:migrate           # prisma migrate deploy; db:* resolve DB_SECRET_ID (or DATABASE_URL) first
 pnpm db:migrate:dev       # create a new migration: pnpm db:migrate:dev --name <change>
 pnpm db:seed              # load prisma/seed/data.json (idempotent; demo appointments = tomorrow)
@@ -33,8 +34,6 @@ pnpm test:all             # lint → typecheck → unit → int → e2e (what CI
 pnpm lint                 # eslint (incl. layer boundaries)
 pnpm typecheck            # tsc --noEmit
 pnpm format               # prettier --write (format:check in CI)
-# Planned in M4 (not yet in package.json / compose):
-#   docker compose --profile app up --build   full stack in Docker (reviewer mode)
 ```
 
 ## Hard rules

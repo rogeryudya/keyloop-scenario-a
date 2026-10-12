@@ -1,0 +1,22 @@
+# Keep the build context small and secret-free. Docs: docs/local-dev/docker-compose.md#dockerfile-multi-stage
+node_modules
+dist
+coverage
+src/generated
+.git
+.github
+.vscode
+.idea
+.claude
+.cursor
+.env
+.env.*
+!.env.example
+*.log
+infra
+docs
+**/.terraform
+**/*.tfstate*
+Dockerfile
+docker-compose.yml
+.dockerignore
