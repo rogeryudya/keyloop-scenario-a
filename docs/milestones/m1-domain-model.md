@@ -10,7 +10,7 @@
 - [x] Entity `Appointment` (`create` / `restore` / `cancel`), status `CONFIRMED | CANCELLED`, invariants per BR-1, BR-3, BR-12. Unit tests
 - [x] Prisma schema exactly per `docs/data-dictionary.md` (tables, types, checks, composite FKs, indexes)
 - [x] Migration raw SQL for what Prisma can't express: `btree_gist` + the two **exclusion constraints**, partial index, `lower(email)` unique index, check constraints (see `docs/data-dictionary.md`)
-- [ ] ADR 0005: data model and how double-booking is prevented (exclusion constraint vs locking vs serializable)
+- [x] ADR 0006 (0005 was taken by the layer-boundary lint ADR): data model and how double-booking is prevented (exclusion constraint vs locking vs serializable)
 - [ ] Seed script `pnpm db:seed` loading `prisma/seed/data.json` per the rules in `prisma/seed/README.md` (idempotent, demo appointments relative to "tomorrow" in dealership time zone, validated before insert)
 - [ ] `dealerships` module: queries + endpoints `GET /v1/dealerships`, `GET /v1/dealerships/:id`, `GET /v1/service-types` (FR-10), cursor pagination on lists
 - [ ] Integration tests: exclusion constraint rejects an overlapping insert for the same bay / technician, accepts back-to-back and cancelled overlaps
