@@ -45,7 +45,7 @@ Everything below this line applies to **every** task.
 | `infrastructure` | `domain`, `application` (ports), `@prisma/client`, Nest | presentation |
 | `presentation` | `application` (commands, queries, result types), `shared`, Nest, `class-validator`, Swagger | `domain` entities directly, infrastructure, repositories, Prisma |
 
-These rules are enforced by lint (ESLint `boundaries` plugin or `dependency-cruiser`, set up in M0). A boundary violation is a bug.
+These rules are enforced by `pnpm lint` via [`eslint.boundaries.mjs`](../../eslint.boundaries.mjs) ([ADR-0005](../decisions/0005-layer-boundary-lint.md)). A boundary violation is a bug.
 
 **The key decoupling:** a controller knows only `CommandBus`/`QueryBus` and message classes. It never knows which handler runs, which repository is used, or that Prisma exists.
 

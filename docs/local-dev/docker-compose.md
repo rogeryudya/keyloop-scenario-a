@@ -125,7 +125,7 @@ volumes:
 | `deps` | `pnpm install --frozen-lockfile` | other stages |
 | `build` | `prisma generate` + `nest build` | `runtime` |
 | `tools` | full source + dev deps (Prisma CLI, scripts) | `migrate` |
-| `runtime` | `node:22-alpine`, prod deps + `dist/` + Prisma client, non-root user, `HEALTHCHECK` | `api` |
+| `runtime` | `node:24-alpine`, prod deps + `dist/` + Prisma client, non-root user, `HEALTHCHECK` | `api` |
 
 The runtime image contains no dev dependencies, scripts or `.env`.
 

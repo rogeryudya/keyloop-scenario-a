@@ -1,0 +1,12 @@
+// Prisma schema. Target design: docs/data-dictionary.md (models arrive in M1).
+// Prisma can't express everything (exclusion constraints, ranges); see raw SQL in migrations.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
