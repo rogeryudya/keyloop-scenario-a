@@ -38,11 +38,11 @@ export function appointmentRepositoryContract(make: () => Promise<AppointmentRep
 - Race test for invariants like double booking: fire N identical commands in parallel through the real handler + Prisma adapter; assert exactly one succeeds and the others fail with the conflict error (proves the DB constraint/lock, not just the in-memory check).
 
 ## Secrets Manager credential loading (floci)
-One integration test, tagged so it can be skipped where Docker-in-Docker is unavailable:
-- Start floci via Testcontainers (`GenericContainer('floci/floci:<pinned>')`, expose 4566).
-- Create a secret in RDS format pointing at the Testcontainers Postgres.
-- Run `DbCredentialsProvider` with `DB_SECRET_ID` + `AWS_ENDPOINT_URL` → assert it builds the right URL and connects.
-- Also assert: missing secret → startup fails with a clear error; malformed JSON → clear error.
+One integration suite, `src/config/db-credentials.provider.int-spec.ts`. Set `SKIP_FLOCI_TESTS=1` to skip it where Testcontainers can't start extra containers:
+- Starts floci via Testcontainers (`floci/floci:2.2.0`, same as Compose; waits on `/_floci/health`). Secrets Manager doesn't need the Docker socket.
+- Creates RDS-format secrets that point at the Testcontainers Postgres.
+- Boots `AppConfigModule` + `PrismaModule` with `DB_SECRET_ID` (and a wrong `DATABASE_URL`, to prove precedence) and queries the DB.
+- Asserts a clear error for: missing secret, malformed JSON, missing fields (without echoing values), binary secret, and Secrets Manager unreachable.
 
 ## e2e (API) tests (`test/e2e/*.e2e-spec.ts`)
 App factory `test/helpers/app.ts` builds the real `AppModule` with the same global setup as `main.ts` (versioning, `ValidationPipe`, exception filter). Use a shared `configureApp(app)` function so tests and production can't diverge.

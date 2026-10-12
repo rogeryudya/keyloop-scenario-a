@@ -9,7 +9,7 @@
 - [x] Terraform `infra/modules/database` + `envs/local` (floci): RDS + RDS-format secrets; `pnpm infra:up|plan|down` via the Terraform container (see `docs/infrastructure.md`)
 - [x] `infra/envs/aws-dev` skeleton using the same module; passes `terraform validate`
 - [x] `DbCredentialsProvider`: Secrets Manager mode (`DB_SECRET_ID`); `db:migrate`/`db:seed` via `with-db-url`
-- [ ] Integration test: credential loading from floci Secrets Manager (incl. missing / malformed secret)
+- [x] Integration test: credential loading from floci Secrets Manager (incl. missing / malformed secret)
 - [ ] Multi-stage Dockerfile (`tools`, `runtime`) + Compose `app` profile: bootstrap → migrate/seed → api
 - [ ] CI: add `terraform` and `smoke` jobs per `docs/ci.md`; Dependabot config
 - [ ] Branch protection on `main` with required checks; Bugbot installed with `.cursor/BUGBOT.md`
