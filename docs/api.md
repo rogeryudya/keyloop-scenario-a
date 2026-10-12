@@ -23,7 +23,22 @@ Unversioned: `/health`, `/docs`.
 ### Module error codes
 | Status | `code` | Endpoint | When |
 |---|---|---|---|
-| 404 | `DEALERSHIP_NOT_FOUND` | `GET /v1/dealerships/:id` | No dealership with that id (BR-13) |
+| 404 | `DEALERSHIP_NOT_FOUND` | `GET /v1/dealerships/:id`, `POST /v1/appointments` | No dealership with that id (BR-13) |
+| 404 | `SERVICE_TYPE_NOT_FOUND` | `POST /v1/appointments` | No service type with that id (BR-13) |
+| 404 | `CUSTOMER_NOT_FOUND` | `POST /v1/appointments` | No customer with that id (BR-13) |
+| 404 | `VEHICLE_NOT_FOUND` | `POST /v1/appointments` | No vehicle with that id (BR-13) |
+| 404 | `APPOINTMENT_NOT_FOUND` | `GET /v1/appointments/:id` | No appointment with that id |
+| 422 | `VEHICLE_NOT_OWNED_BY_CUSTOMER` | `POST /v1/appointments` | The vehicle belongs to another customer (BR-5) |
+| 422 | `APPOINTMENT_IN_PAST` | `POST /v1/appointments` | `start` is not after the current time (BR-3) |
+| 422 | `OUTSIDE_OPENING_HOURS` | `POST /v1/appointments` | `[start, start + duration)` doesn't fit in one day's opening hours, local time (BR-4) |
+| 422 | `SERVICE_TYPE_NOT_SUPPORTED` | `POST /v1/appointments` | No technician at the dealership is qualified for the service type (BR-6) |
+| 409 | `NO_SERVICE_BAY_AVAILABLE` | `POST /v1/appointments` | Every bay at the dealership is busy for part of the slot (BR-7) |
+| 409 | `NO_TECHNICIAN_AVAILABLE` | `POST /v1/appointments` | Every qualified technician is busy for part of the slot (BR-8) |
+| 409 | `APPOINTMENT_CONFLICT` | `POST /v1/appointments` | Concurrent bookings kept taking the free resources; still failing after 3 retries (BR-10). Safe to retry |
+
+`POST /v1/appointments` checks in this order and reports the first failure: request shape (400) → dealership,
+service type, customer, vehicle exist (404) → vehicle ownership (422) → future start, opening hours (422) →
+service supported (422) → bay (409) → technician (409) (A-13).
 
 ## Generic error codes
 Returned by the platform for any endpoint, in the standard error format (`conventions.md` › Errors). Module-specific codes are listed with their endpoints.
@@ -42,6 +57,7 @@ Record every API change here. Mark breaking changes clearly; they require a new 
 
 - v1: initial
 - v1 (M1): added `GET /v1/dealerships`, `GET /v1/dealerships/:id`, `GET /v1/service-types` (non-breaking)
+- v1 (M2): added `POST /v1/appointments`, `GET /v1/appointments/:id` (non-breaking)
 
 ## Examples
 
@@ -103,3 +119,59 @@ Response `200`
 }
 ```
 `durationMinutes` sets the appointment length: end = start + duration (BR-1).
+
+### POST /v1/appointments
+Books the service. The system picks the bay and technician (A-4): the lowest-id free bay, and the
+free qualified technician with the fewest appointments that day (tie → lowest id) (BR-11).
+
+Request
+```json
+{
+  "customerId": "50000000-0000-4000-8000-000000000001",
+  "vehicleId": "60000000-0000-4000-8000-000000000001",
+  "dealershipId": "10000000-0000-4000-8000-000000000001",
+  "serviceTypeId": "40000000-0000-4000-8000-000000000001",
+  "start": "2030-01-15T10:00:00+07:00"
+}
+```
+- All ids are UUIDs. `start` is ISO-8601 **with an offset** (`Z` or `±HH:mm`, A-7). Unknown fields
+  (for example a `serviceBayId`) are rejected with 400.
+- End = start + the service type's `durationMinutes` (BR-1). Intervals are half-open, so back-to-back
+  bookings on the same bay or technician are fine (BR-2).
+
+Response `201`, header `Location: /v1/appointments/{id}`
+```json
+{ "id": "0b9c7a52-6a8e-4c3e-9d0f-2f7f1c1e4a10" }
+```
+
+Response `409` (all bays taken)
+```json
+{ "error": { "code": "NO_SERVICE_BAY_AVAILABLE", "message": "No service bay is free for the whole requested slot", "details": [] } }
+```
+
+Response `422` (slot runs past closing time)
+```json
+{ "error": { "code": "OUTSIDE_OPENING_HOURS", "message": "The appointment must fall within the dealership's opening hours",
+  "details": [ { "field": "start", "issue": "service would not fit within opening hours on that day" } ] } }
+```
+
+### GET /v1/appointments/:id
+Response `200`
+```json
+{
+  "id": "0b9c7a52-6a8e-4c3e-9d0f-2f7f1c1e4a10",
+  "status": "CONFIRMED",
+  "start": "2030-01-15T03:00:00.000Z",
+  "end": "2030-01-15T03:30:00.000Z",
+  "createdAt": "2030-01-14T00:00:00.000Z",
+  "cancelledAt": null,
+  "dealership": { "id": "10000000-0000-4000-8000-000000000001", "name": "Keyloop Motors Bangkok", "timeZone": "Asia/Bangkok" },
+  "serviceBay": { "id": "20000000-0000-4000-8000-000000000101", "name": "Bay 1" },
+  "technician": { "id": "30000000-0000-4000-8000-000000000101", "name": "Anong Srisuk" },
+  "serviceType": { "id": "40000000-0000-4000-8000-000000000001", "code": "OIL_CHANGE", "name": "Oil and filter change", "durationMinutes": 30 },
+  "customer": { "id": "50000000-0000-4000-8000-000000000001", "name": "Somsak Jaidee" },
+  "vehicle": { "id": "60000000-0000-4000-8000-000000000001", "registration": "1กข 2345", "make": "Toyota", "model": "Corolla Altis" }
+}
+```
+Times are returned in UTC; convert with `dealership.timeZone` for display.
+Response `404`: `APPOINTMENT_NOT_FOUND`. A malformed id → `400 VALIDATION_FAILED` with `details[0].field = "id"`.

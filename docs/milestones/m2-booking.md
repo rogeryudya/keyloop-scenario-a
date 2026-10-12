@@ -1,6 +1,6 @@
 # M2 — Booking with availability check (core of the brief)
 
-**Status:** `in-progress`
+**Status:** `done`
 **Goal:** a user can book an appointment; the system checks bay **and** qualified technician for the full duration, allocates them, and persists the appointment, staying correct under concurrent requests.
 **Requirements:** FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, BR-3 … BR-11, BR-13, NFR-6
 
@@ -15,7 +15,7 @@
 - [x] Handler unit tests with in-memory fakes + `FixedClock` for each error path
 - [x] Integration: Prisma repository contract tests; **concurrency test**: 10 parallel requests for the same slot at a dealership with 1 bay → exactly 1 succeeds, 9 get 409; with 2 bays and 2 qualified technicians → exactly 2 succeed
 - [x] e2e: happy path and one test per error code (400 validation, 404s, 422 BR-3/4/5/6, 409 BR-7/8)
-- [ ] `docs/api.md`: request/response examples and the error code table
+- [x] `docs/api.md`: request/response examples and the error code table
 
 ## Acceptance criteria
 - All Must requirements (FR-1 … FR-6) demonstrably work via the API
