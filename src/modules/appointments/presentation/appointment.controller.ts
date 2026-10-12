@@ -1,0 +1,77 @@
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Res } from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import {
+  ApiBadRequestResponse,
+  ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiTags,
+  ApiUnprocessableEntityResponse,
+} from '@nestjs/swagger';
+import type { ServerResponse } from 'node:http';
+import { ErrorResponseDto } from '../../../shared/presentation/dto/error-response.dto';
+import { IdParamDto } from '../../../shared/presentation/dto/id-param.dto';
+import { CreateAppointmentCommand } from '../application/commands/create-appointment/create-appointment.command';
+import { GetAppointmentQuery } from '../application/queries/get-appointment/get-appointment.query';
+import { AppointmentIdResponseDto, AppointmentResponseDto } from './dto/appointment.response.dto';
+import { CreateAppointmentRequestDto } from './dto/create-appointment.request.dto';
+
+@ApiTags('appointments')
+@Controller({ path: 'appointments', version: '1' })
+export class AppointmentController {
+  constructor(
+    private readonly commands: CommandBus,
+    private readonly queries: QueryBus,
+  ) {}
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiCreatedResponse({
+    type: AppointmentIdResponseDto,
+    description: 'Booked; `Location` header points to the new appointment',
+  })
+  @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'VALIDATION_FAILED' })
+  @ApiNotFoundResponse({
+    type: ErrorResponseDto,
+    description:
+      'DEALERSHIP_NOT_FOUND, SERVICE_TYPE_NOT_FOUND, CUSTOMER_NOT_FOUND, VEHICLE_NOT_FOUND',
+  })
+  @ApiConflictResponse({
+    type: ErrorResponseDto,
+    description: 'NO_SERVICE_BAY_AVAILABLE, NO_TECHNICIAN_AVAILABLE, APPOINTMENT_CONFLICT',
+  })
+  @ApiUnprocessableEntityResponse({
+    type: ErrorResponseDto,
+    description:
+      'APPOINTMENT_IN_PAST, OUTSIDE_OPENING_HOURS, VEHICLE_NOT_OWNED_BY_CUSTOMER, ' +
+      'SERVICE_TYPE_NOT_SUPPORTED',
+  })
+  async create(
+    @Body() dto: CreateAppointmentRequestDto,
+    @Res({ passthrough: true }) res: ServerResponse,
+  ): Promise<AppointmentIdResponseDto> {
+    const { id } = await this.commands.execute(
+      new CreateAppointmentCommand(
+        dto.customerId,
+        dto.vehicleId,
+        dto.dealershipId,
+        dto.serviceTypeId,
+        new Date(dto.start),
+      ),
+    );
+    res.setHeader('Location', `/v1/appointments/${id}`);
+    return new AppointmentIdResponseDto(id);
+  }
+
+  @Get(':id')
+  @ApiOkResponse({ type: AppointmentResponseDto })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description: 'VALIDATION_FAILED (id is not a UUID)',
+  })
+  @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'APPOINTMENT_NOT_FOUND' })
+  async get(@Param() { id }: IdParamDto): Promise<AppointmentResponseDto> {
+    return AppointmentResponseDto.from(await this.queries.execute(new GetAppointmentQuery(id)));
+  }
+}
