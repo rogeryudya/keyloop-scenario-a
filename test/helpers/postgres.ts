@@ -1,2 +1,2 @@
-/** Same image as the `postgres` service in docker-compose.yml (and, from M4, the RDS major version). */
+/** Same Postgres major as floci RDS (FLOCI_SERVICES_RDS_DEFAULT_POSTGRES_IMAGE in docker-compose.yml). */
 export const POSTGRES_IMAGE = 'postgres:17-alpine';

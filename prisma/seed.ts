@@ -6,7 +6,7 @@ import { buildSeedPlan } from './seed/seed-plan';
 import { writeSeed } from './seed/write-seed';
 
 async function main(): Promise<void> {
-  // M4 resolves DB_SECRET_ID here, like `pnpm db:migrate`; until then DATABASE_URL comes from .env.
+  // Set by scripts/local/with-db-url.ts (`pnpm db:seed`), resolved from DB_SECRET_ID or DATABASE_URL.
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error('DATABASE_URL is not set');
 

@@ -145,7 +145,7 @@ export const boundariesConfig = [
       'import/resolver': { typescript: { alwaysTryTypes: true } },
       'boundaries/elements': elements,
       'boundaries/files': [
-        { category: 'composition-root', pattern: 'src/*.ts' },
+        { category: 'composition-root', pattern: ['src/*.ts', 'scripts/**/*.ts'] },
         {
           category: 'test',
           pattern: ['**/*.spec.ts', '**/*.int-spec.ts', '**/*.e2e-spec.ts', 'test/**'],

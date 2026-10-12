@@ -8,32 +8,33 @@ Scope: quality gates only. **No deploy** (interview project); it can be added la
 PR opened / updated, push to main
         │
         ├─ GitHub Actions: .github/workflows/ci.yml
-        │    ├─ lint        format check · eslint (incl. layer boundaries) · typecheck · prisma validate
+        │    ├─ lint        format check · eslint (incl. layer boundaries) · typecheck · prisma validate · build
         │    ├─ terraform   fmt -check · validate (local + aws-dev) · tflint
         │    ├─ unit        domain + application tests, coverage report      (needs: lint)
         │    ├─ integration Testcontainers Postgres (+ floci secrets test)   (needs: lint)
-        │    ├─ e2e         full app + Testcontainers + WireMock             (needs: lint)
+        │    ├─ e2e         full app + Testcontainers                        (needs: lint)
         │    └─ smoke       docker compose --profile app up → GET /health    (needs: lint)
         │
         └─ Bugbot (GitHub App, PRs only): AI review comments, rules from .cursor/BUGBOT.md
 ```
 
-`lint` runs first because it's fast and fails cheaply. The test jobs run in parallel after it.
+`lint` and `terraform` run first because they're fast and fail cheaply. The test jobs run in parallel after `lint`.
 
 ## Jobs
 
 | Job | Commands | Fails when |
 |---|---|---|
-| lint | `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm prisma validate` | formatting, lint, boundary violation, type error, invalid schema |
-| terraform | `terraform fmt -check -recursive`, `terraform validate` per env (`init -backend=false`), `tflint` | unformatted HCL, invalid config, lint findings |
+| lint | `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm prisma validate`, `pnpm build` | formatting, lint, boundary violation, type error, invalid schema, build error |
+| terraform | `terraform fmt -check -recursive`, `terraform validate` per env (`init -backend=false`), `tflint --recursive` (config `infra/.tflint.hcl`: terraform recommended preset + aws ruleset 0.49.0) | unformatted HCL, invalid config, lint findings |
 | unit | `pnpm test:cov` | test failure, or domain+application coverage < 90% |
 | integration | `pnpm test:int` | repository/contract/transaction/concurrency/secrets test fails |
 | e2e | `pnpm test:e2e` | API contract test fails |
-| smoke | `docker compose --profile app up -d --build --wait`, `curl -f localhost:3000/health`, then `down -v` | the reviewer quickstart is broken |
+| smoke | `docker compose --profile app up -d --build --wait --wait-timeout 600`, `curl -f` on `/health` and `/docs`, logs on failure, then `down -v` | the reviewer quickstart is broken |
 
 GitHub-hosted `ubuntu-latest` runners have Docker, so Testcontainers and Compose work with no extra setup and **no AWS credentials**.
 
 ## Workflow skeleton
+The real file is `.github/workflows/ci.yml` (actions pinned to commit SHAs, shared setup in `.github/actions/setup`). The outline:
 
 ```yaml
 # .github/workflows/ci.yml
@@ -121,7 +122,8 @@ jobs:
 The repeated setup steps go in a composite action (`.github/actions/setup/action.yml`) once the workflow exists.
 
 ## Rules
-- Pin actions to a full commit SHA (with the version in a comment) or at least a major version. Update via Dependabot (`.github/dependabot.yml` for `github-actions` and `npm`, weekly).
+- Pin actions to a full commit SHA (with the version in a comment) or at least a major version. Update via Dependabot (`.github/dependabot.yml`, weekly): `github-actions`, `npm`, `docker` (Dockerfile), `docker-compose` (pinned images) and `terraform` (providers in each env and module).
+- Local checks without installing tools: `actionlint` via `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7`, and tflint via `ghcr.io/terraform-linters/tflint:v0.64.0`.
 - `permissions: contents: read` by default; grant more per job only if needed.
 - CI uses exactly the same `pnpm` scripts as local dev. If it passes locally (`pnpm test:all`), it passes in CI.
 - Node version comes from `.nvmrc`, used by both CI and developers.

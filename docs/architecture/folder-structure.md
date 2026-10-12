@@ -56,7 +56,7 @@ test/
   helpers/                        app factory, DB reset, Testcontainers setup
   wiremock/                       mappings/ + __files/ for external HTTP stubs
   http/                           .http files for manual testing
-docker-compose.yml                floci, otel-lgtm, wiremock (+ datadog profile)
+docker-compose.yml                floci, otel-lgtm (+ app, tools, datadog profiles)
 ```
 
 ## Rules

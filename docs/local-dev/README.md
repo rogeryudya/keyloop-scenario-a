@@ -1,7 +1,7 @@
 # Local development environment
 
 Goal: run the API on the host machine against an AWS-like environment (RDS + Secrets Manager emulated by floci),
-with traces/logs/metrics visible locally and external HTTP dependencies stubbed by WireMock.
+with traces/logs/metrics visible locally. No WireMock: the brief has no external HTTP dependencies (requirements A-10).
 Rationale: [../decisions/0003-local-environment.md](../decisions/0003-local-environment.md).
 
 ## Topology
@@ -14,9 +14,8 @@ Rationale: [../decisions/0003-local-environment.md](../decisions/0003-local-envi
  │                          │──── Postgres (host/port from secret) ─▶ floci RDS proxy :7001-7099
  │                          │                                         └─▶ real Postgres container
  │                          │──── OTLP :4318 ──────────────────────▶ otel-lgtm (Grafana :3001)
- │                          │──── HTTP ────────────────────────────▶ WireMock :8080 (external APIs)
  └──────────────────────────┘
- Docker Compose: floci, otel-lgtm, wiremock
+ Docker Compose: floci, otel-lgtm
 ```
 
 The API itself runs outside Docker (fast reload, debugger). Everything it depends on runs in Compose.
@@ -27,9 +26,9 @@ The API itself runs outside Docker (fast reload, debugger). Everything it depend
 | API | 3000 | `/v1/...`, `/health`, `/docs` |
 | floci (AWS APIs) | 4566 | Secrets Manager, RDS control plane |
 | floci RDS proxy | 7001–7099 | Actual Postgres connection; port is assigned per instance |
+| floci web console | 4500 | Open via http://localhost:4566/_floci/ui (sidecar starts on first visit): RDS instances, secrets, logs |
 | Grafana (otel-lgtm) | 3001 | Traces (Tempo), logs (Loki), metrics (Prometheus) |
 | OTLP | 4317 gRPC / 4318 HTTP | Telemetry ingest |
-| WireMock | 8080 | Admin API at `/__admin` |
 
 ## Just want it running? (reviewers)
 ```bash
@@ -41,13 +40,13 @@ Everything (AWS emulation, DB bootstrap, migrations, seed, API, Grafana) runs in
 ```bash
 pnpm install
 cp .env.example .env                 # local defaults, no real secrets
-docker compose up -d                 # floci, otel-lgtm, wiremock
+docker compose up -d                 # floci, otel-lgtm
 pnpm infra:up                        # Terraform (in Docker) → RDS + DB secrets in floci (idempotent)
 pnpm db:migrate                      # resolves secret → runs prisma migrate
 pnpm db:seed
 pnpm start:dev
 ```
-Open: API docs http://localhost:3000/docs · Grafana http://localhost:3001
+Open: API docs http://localhost:3000/docs · Grafana http://localhost:3001 · AWS console (floci) http://localhost:4566/_floci/ui
 
 ## Daily use
 ```bash

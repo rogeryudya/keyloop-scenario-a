@@ -1,5 +1,5 @@
-# Quality gates (docs/ci.md). M0: lint → unit / integration / e2e.
-# terraform, smoke (docker compose --profile app) and Bugbot are added in M4.
+# Quality gates (docs/ci.md): lint and terraform first, then unit / integration / e2e / smoke in parallel.
+# Bugbot reviews PRs as a GitHub App (.cursor/BUGBOT.md), outside this workflow.
 name: CI
 
 on:
@@ -25,6 +25,31 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm prisma validate
       - run: pnpm build
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.5 # same as the Compose terraform image
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive -diff infra
+      - name: terraform validate (every env)
+        run: |
+          for env in infra/envs/*/; do
+            echo "::group::$env"
+            terraform -chdir="$env" init -backend=false -input=false
+            terraform -chdir="$env" validate
+            echo "::endgroup::"
+          done
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+        with:
+          tflint_version: v0.64.0
+      - run: tflint --init --config "$GITHUB_WORKSPACE/infra/.tflint.hcl"
+        env:
+          GITHUB_TOKEN: ${{ github.token }} # avoids rate limits when downloading the aws ruleset
+      - run: tflint --chdir=infra --recursive --config "$GITHUB_WORKSPACE/infra/.tflint.hcl"
 
   unit:
     needs: lint
@@ -55,3 +80,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       - run: pnpm test:e2e
+
+  # The reviewer quickstart: floci → Terraform bootstrap → migrate/seed → api, then health and Swagger checks.
+  smoke:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker compose --profile app up -d --build --wait --wait-timeout 600
+      - run: curl -fsS http://localhost:3000/health
+      - run: curl -fsS -o /dev/null http://localhost:3000/docs
+      - if: failure()
+        run: docker compose --profile app logs --no-color
+      - if: always()
+        run: docker compose --profile app down -v
