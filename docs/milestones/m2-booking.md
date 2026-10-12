@@ -14,7 +14,7 @@
 - [x] `POST /v1/appointments` → 201 + `Location`; `GET /v1/appointments/:id`
 - [x] Handler unit tests with in-memory fakes + `FixedClock` for each error path
 - [x] Integration: Prisma repository contract tests; **concurrency test**: 10 parallel requests for the same slot at a dealership with 1 bay → exactly 1 succeeds, 9 get 409; with 2 bays and 2 qualified technicians → exactly 2 succeed
-- [ ] e2e: happy path and one test per error code (400 validation, 404s, 422 BR-3/4/5/6, 409 BR-7/8)
+- [x] e2e: happy path and one test per error code (400 validation, 404s, 422 BR-3/4/5/6, 409 BR-7/8)
 - [ ] `docs/api.md`: request/response examples and the error code table
 
 ## Acceptance criteria
@@ -28,3 +28,4 @@
 - With the pg driver adapter, Prisma reports the exclusion violation as `PrismaClientKnownRequestError` with code `P2039`. The SQLSTATE is in `meta.driverAdapterError.cause.originalCode`, which is what the adapter checks.
 - Handler unit tests were written with each handler (tasks 4–6), using in-memory fakes in `test/fakes/` and `FixedClock`. Coverage for `appointments/application` is 100% lines and branches.
 - Concurrency test is in `test/concurrency/`, because the lint rules forbid `@nestjs/testing` imports under `application/`. It passed 20 runs in a row (2026-10-12). In each run all 10 requests pick the same lowest-id resources. One wins, and the losers retry, see the winner and get the next free resources or a 409.
+- e2e has no deterministic way to trigger `APPOINTMENT_CONFLICT` over HTTP. The unit tests (simulated lost race) and the concurrency integration test cover it instead.

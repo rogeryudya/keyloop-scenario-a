@@ -14,10 +14,15 @@ interface ErrorJson {
 }
 
 // Seed reference data (prisma/seed/data.json). Bangkok: UTC+7, 08:00–18:00, 3 bays.
+// Hanoi: UTC+7, 09:00–17:00, 1 bay, nobody qualified for TRANSMISSION_REPAIR.
 const BANGKOK = '10000000-0000-4000-8000-000000000001';
+const HANOI = '10000000-0000-4000-8000-000000000003';
 const OIL_CHANGE = '40000000-0000-4000-8000-000000000001'; // 30 min
+const TRANSMISSION_REPAIR = '40000000-0000-4000-8000-000000000007'; // Bangkok: only Decha
 const SOMSAK = '50000000-0000-4000-8000-000000000001';
 const SOMSAK_COROLLA = '60000000-0000-4000-8000-000000000001';
+const MALEE_CITY = '60000000-0000-4000-8000-000000000003';
+const UNKNOWN = '99999999-0000-4000-8000-000000000000';
 
 const NOW = '2030-01-14T00:00:00.000Z';
 
@@ -59,6 +64,104 @@ describe('Appointments (e2e)', () => {
 
       expect(id).toMatch(/^[0-9a-f-]{36}$/);
       expect(res.headers.location).toBe(`/v1/appointments/${id}`);
+    });
+
+    const post = (body: Record<string, unknown>) => http().post('/v1/appointments').send(body);
+    const errorOf = (res: { body: unknown }) => (res.body as ErrorJson).error;
+
+    describe('400 VALIDATION_FAILED', () => {
+      it.each([
+        ['customerId', { customerId: 'nope' }],
+        ['vehicleId', { vehicleId: undefined }],
+        ['start', { start: 'tomorrow at ten' }],
+        ['start', { start: '2030-01-15T10:00:00' }], // no offset (A-7)
+      ])('rejects an invalid %s', async (field, overrides) => {
+        const res = await post(booking(overrides)).expect(400);
+
+        expect(errorOf(res)).toMatchObject({ code: 'VALIDATION_FAILED' });
+        expect(errorOf(res).details.map((d) => d.field)).toContain(field);
+      });
+
+      it('rejects unknown body fields, e.g. a client-chosen bay (A-4)', async () => {
+        const res = await post(booking({ serviceBayId: UNKNOWN })).expect(400);
+
+        expect(errorOf(res).code).toBe('VALIDATION_FAILED');
+      });
+    });
+
+    describe('404 (BR-13)', () => {
+      it.each([
+        ['DEALERSHIP_NOT_FOUND', { dealershipId: UNKNOWN }],
+        ['SERVICE_TYPE_NOT_FOUND', { serviceTypeId: UNKNOWN }],
+        ['CUSTOMER_NOT_FOUND', { customerId: UNKNOWN }],
+        ['VEHICLE_NOT_FOUND', { vehicleId: UNKNOWN }],
+      ])('returns %s', async (code, overrides) => {
+        const res = await post(booking(overrides)).expect(404);
+
+        expect(errorOf(res).code).toBe(code);
+      });
+    });
+
+    describe('422 business rules', () => {
+      it.each([
+        [
+          'APPOINTMENT_IN_PAST (BR-3)',
+          'APPOINTMENT_IN_PAST',
+          { start: '2030-01-13T10:00:00+07:00' },
+        ],
+        [
+          'OUTSIDE_OPENING_HOURS (BR-4)',
+          'OUTSIDE_OPENING_HOURS',
+          { start: '2030-01-15T17:45:00+07:00' }, // 17:45–18:15, Bangkok closes 18:00
+        ],
+        [
+          'VEHICLE_NOT_OWNED_BY_CUSTOMER (BR-5)',
+          'VEHICLE_NOT_OWNED_BY_CUSTOMER',
+          { vehicleId: MALEE_CITY },
+        ],
+        [
+          'SERVICE_TYPE_NOT_SUPPORTED (BR-6)',
+          'SERVICE_TYPE_NOT_SUPPORTED',
+          { dealershipId: HANOI, serviceTypeId: TRANSMISSION_REPAIR },
+        ],
+      ])('returns %s', async (_name, code, overrides) => {
+        const res = await post(booking(overrides)).expect(422);
+
+        expect(errorOf(res).code).toBe(code);
+        expect(await prisma.appointment.count()).toBe(0);
+      });
+    });
+
+    describe('409 availability', () => {
+      it('returns NO_SERVICE_BAY_AVAILABLE when the only bay is taken (BR-7)', async () => {
+        await post(booking({ dealershipId: HANOI })).expect(201);
+
+        const res = await post(booking({ dealershipId: HANOI })).expect(409);
+
+        expect(errorOf(res).code).toBe('NO_SERVICE_BAY_AVAILABLE');
+      });
+
+      it('returns NO_TECHNICIAN_AVAILABLE when the only qualified technician is busy (BR-8)', async () => {
+        await post(booking({ serviceTypeId: TRANSMISSION_REPAIR })).expect(201);
+
+        const res = await post(
+          booking({ serviceTypeId: TRANSMISSION_REPAIR, start: '2030-01-15T11:00:00+07:00' }),
+        ).expect(409);
+
+        expect(errorOf(res).code).toBe('NO_TECHNICIAN_AVAILABLE');
+      });
+
+      it('books back-to-back on the same bay (BR-2)', async () => {
+        await post(booking({ dealershipId: HANOI })).expect(201);
+
+        await post(booking({ dealershipId: HANOI, start: '2030-01-15T10:30:00+07:00' })).expect(
+          201,
+        );
+      });
+    });
+
+    it('is only reachable under /v1', async () => {
+      await http().post('/appointments').send(booking()).expect(404);
     });
   });
 
