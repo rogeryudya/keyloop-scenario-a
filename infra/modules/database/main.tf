@@ -21,8 +21,8 @@ resource "aws_db_instance" "this" {
   password            = random_password.db.result
   publicly_accessible = false
 
+  # Security groups: null (not []) when unset, since floci reports a placeholder group that [] would remove on every apply.
   db_subnet_group_name   = var.db_subnet_group_name
-  # null (not []) when unset: floci reports a placeholder group that [] would try to remove on every apply.
   vpc_security_group_ids = length(var.vpc_security_group_ids) > 0 ? var.vpc_security_group_ids : null
 
   skip_final_snapshot       = var.skip_final_snapshot
