@@ -1,11 +1,11 @@
 # M1 — Domain model and reference data
 
-**Status:** `todo`
+**Status:** `in-progress`
 **Goal:** the scheduling domain modelled in code and in Postgres, with realistic seed data and read endpoints for reference data.
 **Requirements:** FR-10, BR-1, BR-2, BR-4 (value objects), NFR-6 (DB constraints)
 
 ## Tasks
-- [ ] Value object `TimeSlot` (`shared/domain`): half-open `[start, end)`, `overlaps()`, `fromStartAndDuration()`, rejects end ≤ start. Unit tests incl. back-to-back, enclosing, partial, identical intervals
+- [x] Value object `TimeSlot` (`shared/domain`): half-open `[start, end)`, `overlaps()`, `fromStartAndDuration()`, rejects end ≤ start. Unit tests incl. back-to-back, enclosing, partial, identical intervals
 - [ ] Value object `OpeningHours`: daily open/close in a time zone, `contains(slot)`. Unit tests incl. a slot ending exactly at closing time and a DST day in a DST zone (e.g. `Europe/London`); the seed zones, Bangkok and Vietnam, have no DST, but the code must not assume that
 - [ ] Entity `Appointment` (`create` / `restore` / `cancel`), status `CONFIRMED | CANCELLED`, invariants per BR-1, BR-3, BR-12. Unit tests
 - [ ] Prisma schema exactly per `docs/data-dictionary.md` (tables, types, checks, composite FKs, indexes)
