@@ -89,6 +89,7 @@ Made where the brief is silent. Format: `A-n: assumption — reason`.
 - A-9: Availability (FR-7) offers start times on a 15-minute grid. — A reasonable default granularity.
 - A-10: There are no external systems to call, so WireMock isn't needed for this scope.
 - A-11: Opening hours are whole minutes (`HH:mm`, `00:00`–`23:59`), and an appointment must start and end on the same local day; ending exactly at closing time is allowed. — Follows from A-6 (one daily window, no overnight opening) and BR-2 (half-open intervals).
+- A-12: `GET /v1/dealerships/:id` returns the dealership plus `supportedServiceTypeIds` (service types at least one of its technicians is qualified for, BR-6); bays and technicians aren't exposed. Reference lists use the standard `createdAt DESC, id DESC` cursor order. — Enough for a client to build a booking request (FR-10) without exposing staff data.
 
 ## 7. Open questions
 For the interviewer. Don't block on them; the matching assumption applies until answered.

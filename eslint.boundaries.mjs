@@ -146,7 +146,10 @@ export const boundariesConfig = [
       'boundaries/elements': elements,
       'boundaries/files': [
         { category: 'composition-root', pattern: 'src/*.ts' },
-        { category: 'test', pattern: ['**/*.spec.ts', '**/*.e2e-spec.ts', 'test/**'] },
+        {
+          category: 'test',
+          pattern: ['**/*.spec.ts', '**/*.int-spec.ts', '**/*.e2e-spec.ts', 'test/**'],
+        },
       ],
       'boundaries/legacy-templates': false,
     },
