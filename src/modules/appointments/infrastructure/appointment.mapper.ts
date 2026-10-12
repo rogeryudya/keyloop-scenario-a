@@ -32,11 +32,22 @@ export const AppointmentMapper = {
       status: toDomainStatus[row.status],
       createdAt: row.createdAt,
       cancelledAt: row.cancelledAt,
+      ...(row.idempotencyKey !== null &&
+        row.requestHash !== null && {
+          idempotency: { key: row.idempotencyKey, requestHash: row.requestHash },
+        }),
     });
   },
 
   toPersistence(appointment: Appointment): Prisma.AppointmentUncheckedCreateInput {
-    const { slot, status, ...rest } = appointment.toSnapshot();
-    return { ...rest, startAt: slot.start, endAt: slot.end, status: toRowStatus[status] };
+    const { slot, status, idempotency, ...rest } = appointment.toSnapshot();
+    return {
+      ...rest,
+      startAt: slot.start,
+      endAt: slot.end,
+      status: toRowStatus[status],
+      idempotencyKey: idempotency?.key ?? null,
+      requestHash: idempotency?.requestHash ?? null,
+    };
   },
 };

@@ -14,7 +14,6 @@ import { AppointmentRepository } from '../../../domain/appointment.repository';
 import { ResourceAllocator } from '../../../domain/resource-allocator';
 import { BookableResources } from '../../ports/bookable-resources';
 import { BookingParties } from '../../ports/booking-parties';
-import { IdempotencyKeys } from '../../ports/idempotency-keys';
 import { CreateAppointmentCommand } from './create-appointment.command';
 
 /** Retries after a lost race; a fresh attempt may find another free bay or technician. */
@@ -43,7 +42,6 @@ export class CreateAppointmentHandler implements ICommandHandler<CreateAppointme
     private readonly appointments: AppointmentRepository,
     private readonly resources: BookableResources,
     private readonly parties: BookingParties,
-    private readonly idempotencyKeys: IdempotencyKeys,
     private readonly clock: Clock,
   ) {}
 
@@ -72,10 +70,12 @@ export class CreateAppointmentHandler implements ICommandHandler<CreateAppointme
   private async book(cmd: CreateAppointmentCommand): Promise<{ id: string }> {
     const requestHash = cmd.idempotencyKey === undefined ? undefined : requestHashOf(cmd);
     if (cmd.idempotencyKey !== undefined) {
-      const prior = await this.idempotencyKeys.find(cmd.idempotencyKey);
+      const prior = await this.appointments.findByIdempotencyKey(cmd.idempotencyKey);
       if (prior) {
-        if (prior.requestHash !== requestHash) throw new IdempotencyKeyReusedError();
-        return { id: prior.appointmentId };
+        if (prior.toSnapshot().idempotency?.requestHash !== requestHash) {
+          throw new IdempotencyKeyReusedError();
+        }
+        return { id: prior.id };
       }
     }
 
@@ -126,16 +126,12 @@ export class CreateAppointmentHandler implements ICommandHandler<CreateAppointme
       durationMinutes: serviceType.durationMinutes,
       openingHours: dealership.openingHours,
       now,
+      ...(cmd.idempotencyKey !== undefined &&
+        requestHash !== undefined && {
+          idempotency: { key: cmd.idempotencyKey, requestHash },
+        }),
     });
-    await this.appointments.save(appointment);
-    if (cmd.idempotencyKey !== undefined && requestHash !== undefined) {
-      await this.idempotencyKeys.save({
-        key: cmd.idempotencyKey,
-        requestHash,
-        appointmentId: appointment.id,
-        createdAt: now,
-      });
-    }
+    await this.appointments.save(appointment); // a same-key race loses on the unique key (FR-11)
     return { id: appointment.id };
   }
 }

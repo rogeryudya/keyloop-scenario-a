@@ -7,6 +7,12 @@ import {
   OutsideOpeningHoursError,
 } from './appointment.errors';
 
+/** FR-11: the `Idempotency-Key` a booking was made with and a hash of its request (ADR-0007). */
+export interface IdempotencyStamp {
+  readonly key: string;
+  readonly requestHash: string;
+}
+
 export interface AppointmentProps {
   readonly id: string;
   readonly dealershipId: string;
@@ -20,6 +26,8 @@ export interface AppointmentProps {
   readonly createdAt: Date;
   /** Set if and only if `status` is `Cancelled`. */
   readonly cancelledAt: Date | null;
+  /** Only when booked with an `Idempotency-Key`. */
+  readonly idempotency?: IdempotencyStamp;
 }
 
 export interface CreateAppointmentInput {
@@ -36,6 +44,7 @@ export interface CreateAppointmentInput {
   /** The dealership's opening hours (BR-4). */
   readonly openingHours: OpeningHours;
   readonly now: Date;
+  readonly idempotency?: IdempotencyStamp;
 }
 
 export class Appointment {

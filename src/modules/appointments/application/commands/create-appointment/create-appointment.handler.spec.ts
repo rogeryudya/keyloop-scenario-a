@@ -3,7 +3,6 @@ import { FixedClock } from '../../../../../../test/fakes/fixed-clock';
 import { InMemoryAppointmentRepository } from '../../../../../../test/fakes/in-memory-appointment-repository';
 import { InMemoryBookableResources } from '../../../../../../test/fakes/in-memory-bookable-resources';
 import { InMemoryBookingParties } from '../../../../../../test/fakes/in-memory-booking-parties';
-import { InMemoryIdempotencyKeys } from '../../../../../../test/fakes/in-memory-idempotency-keys';
 import { useNoOpTransactions } from '../../../../../../test/helpers/transactions';
 import { OpeningHours } from '../../../../../shared/domain/opening-hours';
 import { TimeSlot } from '../../../../../shared/domain/time-slot';
@@ -56,7 +55,6 @@ describe('CreateAppointmentHandler', () => {
   let closeTransactions: () => Promise<void>;
   let appointments: InMemoryAppointmentRepository;
   let handler: CreateAppointmentHandler;
-  let idempotencyKeys: InMemoryIdempotencyKeys;
   let clock: FixedClock;
 
   const setup = (
@@ -86,15 +84,8 @@ describe('CreateAppointmentHandler', () => {
         [MALEE_CAR, MALEE],
       ]),
     );
-    idempotencyKeys = new InMemoryIdempotencyKeys();
     clock = new FixedClock(NOW);
-    handler = new CreateAppointmentHandler(
-      appointments,
-      resources,
-      parties,
-      idempotencyKeys,
-      clock,
-    );
+    handler = new CreateAppointmentHandler(appointments, resources, parties, clock);
   };
 
   const command = (overrides: Partial<CreateAppointmentCommand> = {}): CreateAppointmentCommand => {
@@ -347,6 +338,8 @@ describe('CreateAppointmentHandler', () => {
 
   describe('Idempotency-Key (FR-11)', () => {
     const KEY = 'booking-7f3a';
+    const keyOf = (id: string) =>
+      appointments.all.find((a) => a.id === id)?.toSnapshot().idempotency?.key;
 
     it('replays the first result for the same key and request: one appointment', async () => {
       const first = await handler.execute(command({ idempotencyKey: KEY }));
@@ -355,7 +348,7 @@ describe('CreateAppointmentHandler', () => {
 
       expect(second).toEqual(first);
       expect(appointments.all).toHaveLength(1);
-      expect(idempotencyKeys.all).toMatchObject([{ key: KEY, appointmentId: first.id }]);
+      expect(keyOf(first.id)).toBe(KEY);
     });
 
     it('rejects the same key with a different request: IDEMPOTENCY_KEY_REUSED', async () => {
@@ -377,31 +370,39 @@ describe('CreateAppointmentHandler', () => {
       await expect(handler.execute(command({ idempotencyKey: KEY }))).resolves.toEqual(first);
     });
 
+    it('replays a booking that has since been cancelled', async () => {
+      const first = await handler.execute(command({ idempotencyKey: KEY }));
+      const stored = await appointments.findById(first.id);
+      stored?.cancel(new Date(NOW));
+      if (stored) await appointments.save(stored);
+
+      await expect(handler.execute(command({ idempotencyKey: KEY }))).resolves.toEqual(first);
+    });
+
     it('does not record a failed request, so the key can be used again', async () => {
       await rejection(command({ idempotencyKey: KEY, vehicleId: UNKNOWN }));
 
       const { id } = await handler.execute(command({ idempotencyKey: KEY }));
 
-      expect(idempotencyKeys.all).toMatchObject([{ key: KEY, appointmentId: id }]);
+      expect(keyOf(id)).toBe(KEY);
     });
 
-    it('records nothing without a key', async () => {
-      await handler.execute(command());
+    it('stores no key without the header', async () => {
+      const { id } = await handler.execute(command());
 
-      expect(idempotencyKeys.all).toEqual([]);
+      expect(keyOf(id)).toBeUndefined();
     });
 
     it('replays the winner when a concurrent request saved the same key first', async () => {
-      // Capture the hash this request produces, then make the next key save lose to a "winner".
-      await handler.execute(command({ idempotencyKey: 'probe' }));
-      const [probe] = idempotencyKeys.all;
-      if (!probe) throw new Error('probe booking should have stored its key');
       const winnerId = 'a0000000-0000-4000-8000-0000000000aa';
-      idempotencyKeys.loseNextSave({ ...probe, key: KEY, appointmentId: winnerId });
+      appointments.loseNextSaves(1, (attempted) =>
+        Appointment.restore({ ...attempted.toSnapshot(), id: winnerId }),
+      );
 
       await expect(handler.execute(command({ idempotencyKey: KEY }))).resolves.toEqual({
         id: winnerId,
       });
+      expect(appointments.all.map((a) => a.id)).toEqual([winnerId]);
     });
   });
 });

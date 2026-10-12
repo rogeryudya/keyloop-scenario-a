@@ -112,7 +112,7 @@ describe('CreateAppointment under concurrency (int)', () => {
     const { booked } = split(results);
     const ids = new Set(booked.map((r) => (r as PromiseFulfilledResult<{ id: string }>).value.id));
     expect(await prisma.appointment.count({ where: { dealershipId: HCMC } })).toBe(1);
-    expect(await prisma.idempotencyKey.count()).toBe(1);
+    expect(await prisma.appointment.count({ where: { idempotencyKey: 'same-key' } })).toBe(1);
     expect(ids.size).toBe(1); // every request that succeeded got the same appointment
     expect(booked).toHaveLength(PARALLEL); // the losers replay the winner
   });

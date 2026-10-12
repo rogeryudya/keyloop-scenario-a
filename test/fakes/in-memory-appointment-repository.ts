@@ -7,6 +7,8 @@ import { TimeSlot } from '../../src/shared/domain/time-slot';
 const localDate = (instant: Date, timeZone: string): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone, dateStyle: 'short' }).format(instant);
 
+const keyOf = (a: Appointment): string | undefined => a.toSnapshot().idempotency?.key;
+
 /** Same semantics as PrismaAppointmentRepository, minus the DB constraints. Stores copies. */
 export class InMemoryAppointmentRepository extends AppointmentRepository {
   private readonly rows = new Map<string, Appointment>();
@@ -38,8 +40,16 @@ export class InMemoryAppointmentRepository extends AppointmentRepository {
       if (winner) this.rows.set(winner.id, Appointment.restore(winner.toSnapshot()));
       return Promise.reject(new AppointmentConflictError());
     }
+    const key = appointment.toSnapshot().idempotency?.key;
+    if (key !== undefined && this.all.some((a) => a.id !== appointment.id && keyOf(a) === key)) {
+      return Promise.reject(new AppointmentConflictError()); // like the unique index (FR-11)
+    }
     this.rows.set(appointment.id, Appointment.restore(appointment.toSnapshot()));
     return Promise.resolve();
+  }
+
+  findByIdempotencyKey(key: string): Promise<Appointment | null> {
+    return Promise.resolve(this.all.find((a) => keyOf(a) === key) ?? null);
   }
 
   findById(id: string): Promise<Appointment | null> {

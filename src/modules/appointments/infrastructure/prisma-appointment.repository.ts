@@ -9,6 +9,8 @@ import { AppointmentRepository } from '../domain/appointment.repository';
 import { AppointmentMapper } from './appointment.mapper';
 
 const EXCLUSION_VIOLATION = '23P01';
+/** Only `appointments.idempotency_key` is unique besides the PK, which the app never reuses. */
+const UNIQUE_VIOLATION = 'P2002';
 
 /** With the pg driver adapter, the SQLSTATE sits in `meta.driverAdapterError.cause.originalCode`. */
 const isExclusionViolation = (error: unknown): boolean => {
@@ -36,12 +38,24 @@ export class PrismaAppointmentRepository extends AppointmentRepository {
     } catch (error) {
       // BR-10: a concurrent booking committed first; the exclusion constraint is the last line of defence.
       if (isExclusionViolation(error)) throw new AppointmentConflictError();
+      // FR-11: a concurrent request with the same Idempotency-Key committed first; the retry replays it.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === UNIQUE_VIOLATION
+      ) {
+        throw new AppointmentConflictError();
+      }
       throw error;
     }
   }
 
   async findById(id: string): Promise<Appointment | null> {
     const row = await this.txHost.tx.appointment.findUnique({ where: { id } });
+    return row ? AppointmentMapper.toDomain(row) : null;
+  }
+
+  async findByIdempotencyKey(key: string): Promise<Appointment | null> {
+    const row = await this.txHost.tx.appointment.findUnique({ where: { idempotencyKey: key } });
     return row ? AppointmentMapper.toDomain(row) : null;
   }
 

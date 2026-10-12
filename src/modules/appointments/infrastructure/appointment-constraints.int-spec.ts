@@ -35,6 +35,8 @@ describe('appointments exclusion constraints (int, BR-2, BR-9, BR-10)', () => {
     to: string;
     status?: 'CONFIRMED' | 'CANCELLED';
     who?: typeof SOMSAK;
+    idempotencyKey?: string | null;
+    requestHash?: string | null;
   }): Promise<unknown> => {
     seq += 1;
     const cancelled = input.status === 'CANCELLED';
@@ -50,6 +52,8 @@ describe('appointments exclusion constraints (int, BR-2, BR-9, BR-10)', () => {
         endAt: at(input.to),
         status: input.status ?? 'CONFIRMED',
         cancelledAt: cancelled ? at('00:00') : null,
+        idempotencyKey: input.idempotencyKey ?? null,
+        requestHash: input.requestHash ?? null,
       },
     });
   };
@@ -156,5 +160,48 @@ describe('appointments exclusion constraints (int, BR-2, BR-9, BR-10)', () => {
                 ${OIL_CHANGE}::uuid, ${MALEE.customerId}::uuid, ${MALEE.vehicleId}::uuid,
                 ${at('10:30')}, ${at('11:30')}, now())`,
     ).rejects.toThrow(/23P01|exclusion constraint/);
+  });
+
+  describe('Idempotency-Key columns (FR-11)', () => {
+    const HASH = 'a'.repeat(64);
+
+    it('rejects a second appointment with the same key', async () => {
+      await insert({
+        bay: BAY_1,
+        technician: ANONG,
+        from: '03:00',
+        to: '04:00',
+        idempotencyKey: 'k-1',
+        requestHash: HASH,
+      });
+
+      await expect(
+        insert({
+          bay: BAY_2,
+          technician: BOONSONG,
+          from: '05:00',
+          to: '06:00',
+          idempotencyKey: 'k-1',
+          requestHash: HASH,
+        }),
+      ).rejects.toThrow(/Unique constraint|idempotency_key/);
+    });
+
+    it('allows any number of appointments without a key', async () => {
+      await insert({ bay: BAY_1, technician: ANONG, from: '03:00', to: '04:00' });
+
+      await expect(
+        insert({ bay: BAY_2, technician: BOONSONG, from: '05:00', to: '06:00' }),
+      ).resolves.toBeDefined();
+    });
+
+    it.each([
+      ['a key without a hash', { idempotencyKey: 'k-1', requestHash: null }],
+      ['a hash without a key', { idempotencyKey: null, requestHash: HASH }],
+    ])('rejects %s', async (_case, columns) => {
+      await expect(
+        insert({ bay: BAY_1, technician: ANONG, from: '03:00', to: '04:00', ...columns }),
+      ).rejects.toThrow(/appointments_idempotency_check/);
+    });
   });
 });

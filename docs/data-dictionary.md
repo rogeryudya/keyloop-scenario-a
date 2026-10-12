@@ -28,14 +28,13 @@ erDiagram
     SERVICE_TYPES ||--o{ APPOINTMENTS : "performed in"
     CUSTOMERS ||--o{ APPOINTMENTS : books
     VEHICLES ||--o{ APPOINTMENTS : "serviced in"
-    APPOINTMENTS ||--o{ IDEMPOTENCY_KEYS : "created via"
 ```
 
 | Module | Tables | Written by |
 |---|---|---|
 | `dealerships` | `dealerships`, `service_bays`, `technicians`, `service_types`, `technician_qualifications` | Seed only (read-only at runtime, A-2) |
 | `customers` | `customers`, `vehicles` | Seed only (A-2) |
-| `appointments` | `appointments`, `idempotency_keys` | The API (create, cancel; keys on create with `Idempotency-Key`) |
+| `appointments` | `appointments` | The API (create, cancel) |
 
 ## Tables
 
@@ -150,18 +149,16 @@ ALTER TABLE appointments
 | `(customer_id, created_at DESC, id DESC)` | List by customer, cursor pagination (FR-9) |
 | `(vehicle_id)`, `(service_type_id)` | FK lookups |
 
-### `idempotency_keys`
-FR-11 (M3, [ADR-0007](decisions/0007-idempotency-keys.md)). One row per `Idempotency-Key` used on a **successful**
-`POST /v1/appointments`, inserted in the same transaction as the appointment (A-16).
+**Idempotency (FR-11, [ADR-0007](decisions/0007-idempotency-keys.md)):** two nullable columns on `appointments`,
+set only when the booking was made with an `Idempotency-Key` header (A-16).
 
 | Column | Type | Null | Constraints / notes |
 |---|---|---|---|
-| `key` | `varchar(255)` | no | PK; case-sensitive; 1–255 visible ASCII chars (validated in presentation). The PK makes a concurrent duplicate lose and retry |
-| `request_hash` | `char(64)` | no | sha256 hex of the normalised request (ids + start instant in UTC); a different hash under the same key → 422 `IDEMPOTENCY_KEY_REUSED` |
-| `appointment_id` | `uuid` | no | FK → `appointments.id`, `ON DELETE CASCADE` |
-| `created_at` | `timestamptz` | no | From the app `Clock` |
+| `idempotency_key` | `varchar(255)` | yes | `UNIQUE` (`appointments_idempotency_key_key`); case-sensitive; 1–255 visible ASCII (validated in presentation). A concurrent duplicate loses on it and retries |
+| `request_hash` | `char(64)` | yes | sha256 hex of the normalised request (ids + start instant in UTC); a different hash under the same key → 422 `IDEMPOTENCY_KEY_REUSED` |
 
-Index on `appointment_id` (FK). No expiry: keys are kept for as long as their appointment (A-16).
+`CHECK ((idempotency_key IS NULL) = (request_hash IS NULL))` (`appointments_idempotency_check`): set together or not
+at all. Kept when the appointment is cancelled, so a replay still returns it.
 
 ## Raw SQL constraint names
 Defined in `prisma/migrations/*_m1_constraints/migration.sql` (Prisma can't express them). Map violations by these names.
@@ -186,7 +183,7 @@ Defined in `prisma/migrations/*_m1_constraints/migration.sql` (Prisma can't expr
 | BR-7/8/10 no overlap | ✔ allocator (best effort) | ✔ **exclusion constraints (authoritative under concurrency)** |
 | BR-9 cancelled don't block | ✔ | ✔ partial constraint |
 | BR-12 only confirmed can be cancelled | ✔ | `status`/`cancelled_at` consistency check |
-| FR-11 one appointment per idempotency key | ✔ handler looks the key up first | ✔ PK on `idempotency_keys.key`, same transaction as the insert |
+| FR-11 one appointment per idempotency key | ✔ handler looks the key up first | ✔ `UNIQUE (idempotency_key)` + key/hash `CHECK` |
 
 ## Prisma notes
 - Prisma can't express exclusion constraints, `tstzrange` or partial indexes: add them as raw SQL in the M1 migration and keep this file as the reference. Prisma's schema is therefore not the whole truth.
