@@ -24,6 +24,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm prisma validate
+      - run: pnpm build
 
   unit:
     needs: lint
