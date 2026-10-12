@@ -13,7 +13,7 @@
 - [x] ADR 0006 (0005 was taken by the layer-boundary lint ADR): data model and how double-booking is prevented (exclusion constraint vs locking vs serializable)
 - [x] Seed script `pnpm db:seed` loading `prisma/seed/data.json` per the rules in `prisma/seed/README.md` (idempotent, demo appointments relative to "tomorrow" in dealership time zone, validated before insert)
 - [x] `dealerships` module: queries + endpoints `GET /v1/dealerships`, `GET /v1/dealerships/:id`, `GET /v1/service-types` (FR-10), cursor pagination on lists
-- [ ] Integration tests: exclusion constraint rejects an overlapping insert for the same bay / technician, accepts back-to-back and cancelled overlaps
+- [x] Integration tests: exclusion constraint rejects an overlapping insert for the same bay / technician, accepts back-to-back and cancelled overlaps
 - [ ] `docs/api.md` updated
 
 ## Acceptance criteria
@@ -26,3 +26,4 @@
 - `Appointment.create` enforces BR-1, BR-3 (and BR-12 on `cancel`). BR-4 (opening hours) is checked in the M2 booking handler via `OpeningHours.contains`, because `appointments` must not import the `dealerships` domain.
 - Seed runs via `tsx` (`prisma.config.ts`): plain `node` type stripping can't load the generated Prisma client (extensionless imports) or domain classes (parameter properties). Validation/time-zone logic is in `prisma/seed/seed-plan.ts` (unit-tested in `test/seed/`). `zonedToUtc` there is what M3 availability will need; move it to `shared/domain` then rather than duplicating.
 - Ports typed with the `PrismaTransactionHost` alias need `@InjectTransactionHost()`: decorator metadata for an imported type alias is `Object`, so Nest can't resolve it. `*.int-spec.ts` is now in the boundary lint's test category (int specs live next to adapters and import `test/helpers`).
+- Exclusion violations surface through Prisma + `@prisma/adapter-pg` with the constraint name in the error message (asserted in `appointment-constraints.int-spec.ts`). M2's 23P01 → `AppointmentConflictError` mapping should check the structured code/constraint on the error (inspect it then), not just the message.
