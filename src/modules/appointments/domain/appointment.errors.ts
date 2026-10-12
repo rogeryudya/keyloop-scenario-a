@@ -1,4 +1,4 @@
-import { BusinessRuleError } from '../../../shared/domain/errors';
+import { BusinessRuleError, ConflictError } from '../../../shared/domain/errors';
 
 /** BR-3. */
 export class AppointmentInPastError extends BusinessRuleError {
@@ -13,5 +13,33 @@ export class AppointmentInPastError extends BusinessRuleError {
 export class AppointmentNotCancellableError extends BusinessRuleError {
   constructor() {
     super('APPOINTMENT_NOT_CANCELLABLE', 'Only a confirmed appointment can be cancelled');
+  }
+}
+
+/** BR-6. */
+export class ServiceTypeNotSupportedError extends BusinessRuleError {
+  constructor() {
+    super(
+      'SERVICE_TYPE_NOT_SUPPORTED',
+      'No technician at this dealership is qualified for the service type',
+      [{ field: 'serviceTypeId', issue: 'not offered by this dealership' }],
+    );
+  }
+}
+
+/** BR-7. */
+export class NoServiceBayAvailableError extends ConflictError {
+  constructor() {
+    super('NO_SERVICE_BAY_AVAILABLE', 'No service bay is free for the whole requested slot');
+  }
+}
+
+/** BR-8. */
+export class NoTechnicianAvailableError extends ConflictError {
+  constructor() {
+    super(
+      'NO_TECHNICIAN_AVAILABLE',
+      'No qualified technician is free for the whole requested slot',
+    );
   }
 }
