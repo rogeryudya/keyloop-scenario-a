@@ -44,8 +44,9 @@ services:
       FLOCI_SERVICES_DOCKER_NETWORK: keyloop_default
       # Keep the Postgres major in sync with Testcontainers (floci defaults to 16).
       FLOCI_SERVICES_RDS_DEFAULT_POSTGRES_IMAGE: postgres:17-alpine
-      # The web console sidecar pulls an unpinned image; not needed here.
-      FLOCI_SERVICES_UI_ENABLED: 'false'
+      # Web console (http://localhost:4566/_floci/ui): a sidecar container started on first visit, pinned here
+      # because the default is floci-ui:latest. Published on :4500.
+      FLOCI_SERVICES_UI_IMAGE: floci/floci-ui:0.6.0
     healthcheck:
       # The native image ships bash but no curl/wget, so probe /_floci/health over /dev/tcp ($$ escapes Compose interpolation).
       test:

@@ -15,6 +15,7 @@ run takes a few minutes (image builds plus about 1.5 minutes of RDS provisioning
 - API docs (Swagger): http://localhost:3000/docs. Try `POST /v1/appointments` with the example body.
 - Health: http://localhost:3000/health
 - Grafana: http://localhost:3001 (OpenTelemetry wiring arrives in M5)
+- AWS console (floci): http://localhost:4566/_floci/ui shows the RDS instance and DB secrets
 - Stop and clean up: `docker compose --profile app down -v`
 
 Prerequisites: Docker with Compose v2, and the Docker socket available to containers (floci starts the Postgres

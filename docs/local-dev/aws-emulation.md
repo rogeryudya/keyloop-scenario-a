@@ -21,7 +21,7 @@ services:
       FLOCI_STORAGE_MODE: persistent
       FLOCI_STORAGE_PERSISTENT_PATH: /app/data
       FLOCI_SERVICES_RDS_DEFAULT_POSTGRES_IMAGE: postgres:17-alpine
-      FLOCI_SERVICES_UI_ENABLED: "false"
+      FLOCI_SERVICES_UI_IMAGE: floci/floci-ui:0.6.0   # pinned; default is :latest
 
 volumes:
   floci-data:
@@ -33,6 +33,9 @@ Notes:
   The RDS API still reports `EngineVersion` 16.x unless the instance sets `engine_version` explicitly.
 - The instance's `Endpoint.Address` is an internal container IP, which isn't reachable from the host. That's why the
   secrets set `host` to `localhost` / `floci` themselves and only take the port from the instance.
+- Web console: http://localhost:4566/_floci/ui. On first visit floci starts a `floci-ui` sidecar container (pinned via
+  `FLOCI_SERVICES_UI_IMAGE`, published on :4500) and redirects to it. Browse RDS instances, Secrets Manager secrets
+  and CloudWatch logs. floci removes the sidecar when it stops.
 - Health: `GET /_floci/health` (also `/_localstack/health`). The native image has `bash` but no `curl`/`wget`, so the
   Compose healthcheck makes a raw HTTP request over `/dev/tcp`.
 - Verified on Windows 11 + Docker Desktop (M4 spike): an instance created through the RDS API becomes `available`

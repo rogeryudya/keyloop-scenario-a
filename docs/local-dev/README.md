@@ -26,6 +26,7 @@ The API itself runs outside Docker (fast reload, debugger). Everything it depend
 | API | 3000 | `/v1/...`, `/health`, `/docs` |
 | floci (AWS APIs) | 4566 | Secrets Manager, RDS control plane |
 | floci RDS proxy | 7001–7099 | Actual Postgres connection; port is assigned per instance |
+| floci web console | 4500 | Open via http://localhost:4566/_floci/ui (sidecar starts on first visit): RDS instances, secrets, logs |
 | Grafana (otel-lgtm) | 3001 | Traces (Tempo), logs (Loki), metrics (Prometheus) |
 | OTLP | 4317 gRPC / 4318 HTTP | Telemetry ingest |
 
@@ -45,7 +46,7 @@ pnpm db:migrate                      # resolves secret → runs prisma migrate
 pnpm db:seed
 pnpm start:dev
 ```
-Open: API docs http://localhost:3000/docs · Grafana http://localhost:3001
+Open: API docs http://localhost:3000/docs · Grafana http://localhost:3001 · AWS console (floci) http://localhost:4566/_floci/ui
 
 ## Daily use
 ```bash

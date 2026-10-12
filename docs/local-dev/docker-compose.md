@@ -54,7 +54,7 @@ services:
       FLOCI_STORAGE_PERSISTENT_PATH: /app/data
       FLOCI_SERVICES_DOCKER_NETWORK: keyloop_default
       FLOCI_SERVICES_RDS_DEFAULT_POSTGRES_IMAGE: postgres:17-alpine   # floci defaults to 16; match Testcontainers
-      FLOCI_SERVICES_UI_ENABLED: "false"                              # console sidecar pulls an unpinned image
+      FLOCI_SERVICES_UI_IMAGE: floci/floci-ui:0.6.0                   # web console at :4566/_floci/ui (default is :latest)
     healthcheck:                                # no curl/wget in the image; real probe in docker-compose.yml
       { test: ["CMD", "bash", "-c", "<GET /_floci/health over /dev/tcp, expect 200>"], interval: 5s, retries: 20 }
 
