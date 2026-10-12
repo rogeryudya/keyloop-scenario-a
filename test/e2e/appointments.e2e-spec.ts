@@ -275,4 +275,109 @@ describe('Appointments (e2e)', () => {
       });
     });
   });
+
+  describe('GET /v1/appointments', () => {
+    interface PageJson {
+      data: { id: string; status: string; customer: { id: string } }[];
+      meta: { nextCursor: string | null; limit: number };
+    }
+    const errorOf = (res: { body: unknown }) => (res.body as ErrorJson).error;
+    const list = (query: Record<string, string | number>) =>
+      http().get('/v1/appointments').query(query);
+    const book = async (overrides: Record<string, unknown>): Promise<string> => {
+      const res = await http().post('/v1/appointments').send(booking(overrides)).expect(201);
+      return (res.body as { id: string }).id;
+    };
+
+    it("lists a dealership's appointments in the page envelope (FR-9)", async () => {
+      const id = await book({});
+      await book({ dealershipId: HANOI });
+
+      const res = await list({ dealershipId: BANGKOK }).expect(200);
+      const page = res.body as PageJson;
+
+      expect(page.data.map((a) => a.id)).toEqual([id]);
+      expect(page.meta).toEqual({ nextCursor: null, limit: 20 });
+      expect(page.data[0]).toMatchObject({ status: 'CONFIRMED', customer: { id: SOMSAK } });
+    });
+
+    it("lists a customer's appointments across dealerships, cancelled ones included", async () => {
+      const bangkok = await book({});
+      const hanoi = await book({ dealershipId: HANOI });
+      await http().post(`/v1/appointments/${bangkok}/cancel`).expect(200);
+
+      const res = await list({ customerId: SOMSAK }).expect(200);
+      const statusById = Object.fromEntries(
+        (res.body as PageJson).data.map((a) => [a.id, a.status]),
+      );
+
+      expect(statusById).toEqual({ [bangkok]: 'CANCELLED', [hanoi]: 'CONFIRMED' });
+    });
+
+    it('filters by start time with from (inclusive) and to (exclusive)', async () => {
+      await book({ start: '2030-01-15T09:00:00+07:00' });
+      const inside = await book({ start: '2030-01-15T10:00:00+07:00' });
+      await book({ start: '2030-01-15T11:00:00+07:00' });
+
+      const res = await list({
+        dealershipId: BANGKOK,
+        from: '2030-01-15T10:00:00+07:00',
+        to: '2030-01-15T11:00:00+07:00',
+      }).expect(200);
+
+      expect((res.body as PageJson).data.map((a) => a.id)).toEqual([inside]);
+    });
+
+    it('pages with limit and nextCursor without gaps or repeats', async () => {
+      const booked = [];
+      for (const hour of ['09', '10', '11']) {
+        booked.push(await book({ start: `2030-01-15T${hour}:00:00+07:00` }));
+      }
+
+      const first = (await list({ dealershipId: BANGKOK, limit: 2 }).expect(200)).body as PageJson;
+      expect(first.data).toHaveLength(2);
+      expect(first.meta.nextCursor).not.toBeNull();
+      const second = (
+        await list({
+          dealershipId: BANGKOK,
+          limit: 2,
+          cursor: first.meta.nextCursor ?? '',
+        }).expect(200)
+      ).body as PageJson;
+
+      expect(second.meta.nextCursor).toBeNull();
+      const seen = [...first.data, ...second.data].map((a) => a.id);
+      expect([...seen].sort()).toEqual([...booked].sort());
+    });
+
+    describe('400', () => {
+      it('requires dealershipId or customerId (A-15)', async () => {
+        const res = await list({}).expect(400);
+
+        expect(errorOf(res).code).toBe('VALIDATION_FAILED');
+        expect(errorOf(res).details).toContainEqual({
+          field: 'customerId',
+          issue: 'customerId or dealershipId is required',
+        });
+      });
+
+      it.each([
+        ['dealershipId', { dealershipId: 'nope' }],
+        ['customerId', { customerId: 'nope' }],
+        ['from', { dealershipId: BANGKOK, from: '2030-01-15T10:00:00' }], // no offset
+        ['to', { dealershipId: BANGKOK, to: 'tomorrow' }],
+        ['limit', { dealershipId: BANGKOK, limit: 101 }],
+      ])('rejects an invalid %s', async (field, query) => {
+        const res = await list(query).expect(400);
+
+        expect(errorOf(res).details.map((d) => d.field)).toContain(field);
+      });
+
+      it('returns INVALID_CURSOR for a cursor this API did not produce', async () => {
+        const res = await list({ dealershipId: BANGKOK, cursor: 'bm9wZQ' }).expect(400);
+
+        expect(errorOf(res).code).toBe('INVALID_CURSOR');
+      });
+    });
+  });
 });

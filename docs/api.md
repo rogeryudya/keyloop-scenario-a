@@ -18,6 +18,7 @@ Unversioned: `/health`, `/docs`.
 | GET | `/v1/dealerships/:id` | One dealership + the service types it supports | FR-10 | done |
 | GET | `/v1/dealerships/:id/availability?serviceTypeId=&date=` | Bookable slots for a service type on a local date (15-min grid, local time with offset) | FR-7 | done |
 | GET | `/v1/service-types` | List service types with durations (cursor pagination) | FR-10 | done |
+| GET | `/v1/appointments?dealershipId=&customerId=&from=&to=` | List appointments of a dealership and/or customer (cursor pagination, newest first) | FR-9 | done |
 | POST | `/v1/appointments` | Book an appointment; bay and technician are allocated (201 + `Location`) | FR-1…FR-5 | done |
 | GET | `/v1/appointments/:id` | One appointment with linked dealership, bay, technician, service type, customer, vehicle | FR-6 | done |
 | POST | `/v1/appointments/:id/cancel` | Cancel a confirmed appointment; frees its bay and technician (200 + the updated appointment) | FR-8 | done |
@@ -61,7 +62,7 @@ Record every API change here. Mark breaking changes clearly; they require a new 
 - v1: initial
 - v1 (M1): added `GET /v1/dealerships`, `GET /v1/dealerships/:id`, `GET /v1/service-types` (non-breaking)
 - v1 (M2): added `POST /v1/appointments`, `GET /v1/appointments/:id` (non-breaking)
-- v1 (M3): added `GET /v1/dealerships/:id/availability`, `POST /v1/appointments/:id/cancel` (non-breaking)
+- v1 (M3): added `GET /v1/dealerships/:id/availability`, `POST /v1/appointments/:id/cancel`, `GET /v1/appointments` (non-breaking)
 
 ## Examples
 
@@ -204,3 +205,9 @@ No body. Response `200`: the appointment in the `GET /v1/appointments/:id` shape
 reappears in availability and can be booked (BR-9).
 Errors: `404 APPOINTMENT_NOT_FOUND`, `422 APPOINTMENT_NOT_CANCELLABLE` (already cancelled, BR-12),
 `400 VALIDATION_FAILED` for a malformed id.
+
+### GET /v1/appointments?customerId=…&from=2030-01-15T00:00:00%2B07:00&limit=20
+At least one of `dealershipId` / `customerId` is required (both → both must match); `from` (inclusive) and
+`to` (exclusive) filter on the start time and need an offset (A-15). Cancelled appointments are included.
+Response `200`: `{ "data": [ <appointment as in GET /v1/appointments/:id>, … ], "meta": { "nextCursor": null, "limit": 20 } }`,
+newest booking first. Errors: `400 VALIDATION_FAILED` (no filter, bad UUID/time/limit), `400 INVALID_CURSOR`.

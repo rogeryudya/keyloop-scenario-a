@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBadRequestResponse,
@@ -15,8 +25,14 @@ import { IdParamDto } from '../../../shared/presentation/dto/id-param.dto';
 import { CancelAppointmentCommand } from '../application/commands/cancel-appointment/cancel-appointment.command';
 import { CreateAppointmentCommand } from '../application/commands/create-appointment/create-appointment.command';
 import { GetAppointmentQuery } from '../application/queries/get-appointment/get-appointment.query';
-import { AppointmentIdResponseDto, AppointmentResponseDto } from './dto/appointment.response.dto';
+import { ListAppointmentsQuery } from '../application/queries/list-appointments/list-appointments.query';
+import {
+  AppointmentIdResponseDto,
+  AppointmentPageResponseDto,
+  AppointmentResponseDto,
+} from './dto/appointment.response.dto';
 import { CreateAppointmentRequestDto } from './dto/create-appointment.request.dto';
+import { ListAppointmentsQueryDto } from './dto/list-appointments.query.dto';
 
 @ApiTags('appointments')
 @Controller({ path: 'appointments', version: '1' })
@@ -63,6 +79,21 @@ export class AppointmentController {
     );
     res.setHeader('Location', `/v1/appointments/${id}`);
     return new AppointmentIdResponseDto(id);
+  }
+
+  @Get()
+  @ApiOkResponse({
+    type: AppointmentPageResponseDto,
+    description: 'Newest first (createdAt DESC, id DESC); cancelled appointments included (FR-9)',
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description: 'VALIDATION_FAILED (e.g. neither dealershipId nor customerId), INVALID_CURSOR',
+  })
+  async list(@Query() query: ListAppointmentsQueryDto): Promise<AppointmentPageResponseDto> {
+    const request = query.toPageRequest();
+    const page = await this.queries.execute(new ListAppointmentsQuery(query.toFilter(), request));
+    return AppointmentPageResponseDto.from(page, request.limit);
   }
 
   @Get(':id')

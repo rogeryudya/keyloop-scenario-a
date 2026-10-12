@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Page } from '../../../../shared/application/pagination';
+import { PageMetaDto } from '../../../../shared/presentation/dto/page-meta.dto';
 import { AppointmentView } from '../../application/views/appointment.view';
 
 export class AppointmentIdResponseDto {
@@ -122,5 +124,22 @@ export class AppointmentResponseDto {
 
   static from(view: AppointmentView): AppointmentResponseDto {
     return new AppointmentResponseDto(view);
+  }
+}
+
+export class AppointmentPageResponseDto {
+  @ApiProperty({ type: [AppointmentResponseDto] })
+  readonly data: readonly AppointmentResponseDto[];
+
+  @ApiProperty({ type: PageMetaDto })
+  readonly meta: PageMetaDto;
+
+  private constructor(page: Page<AppointmentView>, limit: number) {
+    this.data = page.items.map((item) => AppointmentResponseDto.from(item));
+    this.meta = new PageMetaDto(page.nextCursor, limit);
+  }
+
+  static from(page: Page<AppointmentView>, limit: number): AppointmentPageResponseDto {
+    return new AppointmentPageResponseDto(page, limit);
   }
 }
