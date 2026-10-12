@@ -4,7 +4,7 @@ One `docker-compose.yml` at the repo root, two ways to use it:
 
 | Mode | Command | What runs in Docker | Who |
 |---|---|---|---|
-| **Dev** (default) | `docker compose up -d` | floci, otel-lgtm, wiremock | Developer; API runs on host with `pnpm start:dev` |
+| **Dev** (default) | `docker compose up -d` | floci, otel-lgtm | Developer; API runs on host with `pnpm start:dev` |
 | **Full stack** | `docker compose --profile app up --build` | everything above + bootstrap → migrate/seed → API | Reviewer / anyone who just wants it running |
 
 Reviewer needs **only Docker**: no Node, pnpm, AWS CLI or manual steps.
@@ -13,7 +13,7 @@ Reviewer needs **only Docker**: no Node, pnpm, AWS CLI or manual steps.
 
 ```
 floci (healthy) ──▶ bootstrap (one-shot: terraform apply → RDS + secrets) ──▶ migrate (one-shot: migrate + seed) ──▶ api (healthy)
-otel-lgtm, wiremock ─────────────────────────────────────────────────────────────────────────────────────▶ api
+otel-lgtm ───────────────────────────────────────────────────────────────────────────────────────────────▶ api
 ```
 Enforced with `depends_on` conditions: `service_healthy` for long-running services and `service_completed_successfully` for one-shot jobs. The API never starts against an unmigrated DB.
 
@@ -28,7 +28,8 @@ The API reaches floci's RDS proxy under a different host depending on where it r
 `bootstrap` writes both (same port, same credentials), so switching modes needs no re-bootstrap.
 
 ## Skeleton
-Image versions are pinned in M4. Verify floci's health endpoint and env vars against its docs then.
+Dependency images are pinned (floci `2.2.0`, otel-lgtm `0.36.0`); the `terraform`/`bootstrap`/`migrate`/`api` services below land in later M4 tasks.
+No WireMock service: the brief has no external HTTP dependencies (requirements A-10).
 
 ```yaml
 name: keyloop                                   # fixes the network name (keyloop_default) for floci
@@ -42,26 +43,24 @@ x-aws-env: &aws-env
 services:
   # ---------- dependencies (always) ----------
   floci:
-    image: floci/floci:<pinned>
+    image: floci/floci:2.2.0
     ports: ["4566:4566", "7001-7099:7001-7099"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - floci-data:/app/data
     environment:
       FLOCI_HOSTNAME: floci
-      FLOCI_SERVICES_DOCKER_NETWORK: keyloop_default
       FLOCI_STORAGE_MODE: persistent
       FLOCI_STORAGE_PERSISTENT_PATH: /app/data
-    healthcheck: { test: ["CMD-SHELL", "<floci health check>"], interval: 5s, retries: 20 }
+      FLOCI_SERVICES_DOCKER_NETWORK: keyloop_default
+      FLOCI_SERVICES_RDS_DEFAULT_POSTGRES_IMAGE: postgres:17-alpine   # floci defaults to 16; match Testcontainers
+      FLOCI_SERVICES_UI_ENABLED: "false"                              # console sidecar pulls an unpinned image
+    healthcheck:                                # no curl/wget in the image; real probe in docker-compose.yml
+      { test: ["CMD", "bash", "-c", "<GET /_floci/health over /dev/tcp, expect 200>"], interval: 5s, retries: 20 }
 
   otel-lgtm:
-    image: grafana/otel-lgtm:<pinned>
+    image: grafana/otel-lgtm:0.36.0
     ports: ["3001:3000", "4317:4317", "4318:4318"]
-
-  wiremock:                                     # only if the brief has external HTTP deps
-    image: wiremock/wiremock:<pinned>
-    ports: ["8080:8080"]
-    volumes: ["./test/wiremock:/home/wiremock"]
 
   # ---------- full stack (profile: app) ----------
   terraform:                                    # used by `pnpm infra:*` (profile: tools)

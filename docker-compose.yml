@@ -1,23 +1,45 @@
 # Local dev dependencies. See docs/local-dev/docker-compose.md.
-# M0: only a temporary Postgres. M4 replaces it with floci (RDS + Secrets Manager) and adds otel-lgtm and wiremock.
-name: keyloop
+# Dev mode: `docker compose up -d` starts floci (RDS + Secrets Manager) and otel-lgtm; the API runs on the host.
+# No WireMock: the brief has no external HTTP dependencies (A-10).
+name: keyloop # fixes the network name (keyloop_default) that floci attaches RDS containers to
 
 services:
-  # TEMPORARY (M0–M3): plain Postgres for local dev. Keep the major version in sync with RDS/floci and Testcontainers.
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: keyloop
-      POSTGRES_PASSWORD: keyloop # local-only dev credential, matches .env.example
-      POSTGRES_DB: keyloop
-    ports: ['5432:5432']
+  # AWS emulation on :4566. RDS runs a real Postgres container (started via the Docker socket) behind a proxy on 7001-7099.
+  floci:
+    image: floci/floci:2.2.0
+    ports:
+      - '4566:4566'
+      - '7001-7099:7001-7099'
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - floci-data:/app/data
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
+      FLOCI_SERVICES_DOCKER_NETWORK: keyloop_default
+      # Keep the Postgres major in sync with Testcontainers (floci defaults to 16).
+      FLOCI_SERVICES_RDS_DEFAULT_POSTGRES_IMAGE: postgres:17-alpine
+      # The web console sidecar pulls an unpinned image; not needed here.
+      FLOCI_SERVICES_UI_ENABLED: 'false'
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U keyloop -d keyloop']
-      interval: 2s
+      # The native image ships bash but no curl/wget, so probe /_floci/health over /dev/tcp ($$ escapes Compose interpolation).
+      test:
+        - CMD
+        - bash
+        - -c
+        - 'exec 3<>/dev/tcp/127.0.0.1/4566 && printf "GET /_floci/health HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && read -r s <&3 && [[ $$s == *" 200 "* ]]'
+      interval: 5s
       timeout: 3s
-      retries: 30
+      retries: 20
+
+  # Grafana + Tempo/Loki/Prometheus with an OTLP receiver. UI on :3001.
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.36.0
+    ports:
+      - '3001:3000'
+      - '4317:4317'
+      - '4318:4318'
 
 volumes:
-  postgres-data:
+  floci-data:

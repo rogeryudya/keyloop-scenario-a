@@ -17,7 +17,7 @@ Source of truth: `package.json` scripts. Don't invent others.
 ```bash
 pnpm install              # install deps (postinstall runs prisma generate)
 cp .env.example .env      # local config, validated at startup
-docker compose up -d      # dev deps (M0–M3: postgres only; M4: floci, otel-lgtm, wiremock)
+docker compose up -d      # dev deps: floci (RDS + Secrets Manager), otel-lgtm
 pnpm db:migrate           # prisma migrate deploy (M4: resolves DB secret first)
 pnpm db:migrate:dev       # create a new migration: pnpm db:migrate:dev --name <change>
 pnpm db:seed              # load prisma/seed/data.json (idempotent; demo appointments = tomorrow)
