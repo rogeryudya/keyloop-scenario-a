@@ -1,12 +1,13 @@
 import { Transactional } from '@nestjs-cls/transactional';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Clock } from '../../../../../shared/domain/clock';
 import { TimeSlot } from '../../../../../shared/domain/time-slot';
 import { Appointment } from '../../../domain/appointment.entity';
 import {
   AppointmentConflictError,
   BookingReferenceNotFoundError,
+  IdempotencyKeyReusedError,
   VehicleNotOwnedByCustomerError,
 } from '../../../domain/appointment.errors';
 import { AppointmentRepository } from '../../../domain/appointment.repository';
@@ -17,6 +18,23 @@ import { CreateAppointmentCommand } from './create-appointment.command';
 
 /** Retries after a lost race; a fresh attempt may find another free bay or technician. */
 export const MAX_CONFLICT_RETRIES = 3;
+
+/**
+ * FR-11 request identity: the same booking whatever the JSON formatting or offset used for `start`
+ * (A-16). The key itself is not part of it.
+ */
+const requestHashOf = (cmd: CreateAppointmentCommand): string =>
+  createHash('sha256')
+    .update(
+      JSON.stringify([
+        cmd.customerId,
+        cmd.vehicleId,
+        cmd.dealershipId,
+        cmd.serviceTypeId,
+        cmd.start.toISOString(),
+      ]),
+    )
+    .digest('hex');
 
 @CommandHandler(CreateAppointmentCommand)
 export class CreateAppointmentHandler implements ICommandHandler<CreateAppointmentCommand> {
@@ -43,9 +61,24 @@ export class CreateAppointmentHandler implements ICommandHandler<CreateAppointme
     }
   }
 
-  /** One transaction: check and reserve are atomic (A-8); the DB constraint backs BR-10. */
+  /**
+   * One transaction: check and reserve are atomic (A-8); the DB constraint backs BR-10. With an
+   * idempotency key, a known key is answered before any other check, so a replay gets the original
+   * result even if, say, its start time has passed since (ADR-0007).
+   */
   @Transactional()
   private async book(cmd: CreateAppointmentCommand): Promise<{ id: string }> {
+    const requestHash = cmd.idempotencyKey === undefined ? undefined : requestHashOf(cmd);
+    if (cmd.idempotencyKey !== undefined) {
+      const prior = await this.appointments.findByIdempotencyKey(cmd.idempotencyKey);
+      if (prior) {
+        if (prior.toSnapshot().idempotency?.requestHash !== requestHash) {
+          throw new IdempotencyKeyReusedError();
+        }
+        return { id: prior.id };
+      }
+    }
+
     const dealership = await this.resources.findDealership(cmd.dealershipId);
     if (!dealership) throw BookingReferenceNotFoundError.dealership(cmd.dealershipId); // BR-13
     const serviceType = await this.resources.findServiceType(cmd.serviceTypeId);
@@ -93,8 +126,12 @@ export class CreateAppointmentHandler implements ICommandHandler<CreateAppointme
       durationMinutes: serviceType.durationMinutes,
       openingHours: dealership.openingHours,
       now,
+      ...(cmd.idempotencyKey !== undefined &&
+        requestHash !== undefined && {
+          idempotency: { key: cmd.idempotencyKey, requestHash },
+        }),
     });
-    await this.appointments.save(appointment);
+    await this.appointments.save(appointment); // a same-key race loses on the unique key (FR-11)
     return { id: appointment.id };
   }
 }

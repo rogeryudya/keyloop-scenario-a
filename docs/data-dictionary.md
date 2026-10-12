@@ -149,7 +149,16 @@ ALTER TABLE appointments
 | `(customer_id, created_at DESC, id DESC)` | List by customer, cursor pagination (FR-9) |
 | `(vehicle_id)`, `(service_type_id)` | FK lookups |
 
-**Idempotency (FR-11, Could, M3):** if built, a separate table `idempotency_keys (key text PK, request_hash text, appointment_id uuid FK, created_at)` rather than columns on `appointments`.
+**Idempotency (FR-11, [ADR-0007](decisions/0007-idempotency-keys.md)):** two nullable columns on `appointments`,
+set only when the booking was made with an `Idempotency-Key` header (A-16).
+
+| Column | Type | Null | Constraints / notes |
+|---|---|---|---|
+| `idempotency_key` | `varchar(255)` | yes | `UNIQUE` (`appointments_idempotency_key_key`); case-sensitive; 1–255 visible ASCII (validated in presentation). A concurrent duplicate loses on it and retries |
+| `request_hash` | `char(64)` | yes | sha256 hex of the normalised request (ids + start instant in UTC); a different hash under the same key → 422 `IDEMPOTENCY_KEY_REUSED` |
+
+`CHECK ((idempotency_key IS NULL) = (request_hash IS NULL))` (`appointments_idempotency_check`): set together or not
+at all. Kept when the appointment is cancelled, so a replay still returns it.
 
 ## Raw SQL constraint names
 Defined in `prisma/migrations/*_m1_constraints/migration.sql` (Prisma can't express them). Map violations by these names.
@@ -174,6 +183,7 @@ Defined in `prisma/migrations/*_m1_constraints/migration.sql` (Prisma can't expr
 | BR-7/8/10 no overlap | ✔ allocator (best effort) | ✔ **exclusion constraints (authoritative under concurrency)** |
 | BR-9 cancelled don't block | ✔ | ✔ partial constraint |
 | BR-12 only confirmed can be cancelled | ✔ | `status`/`cancelled_at` consistency check |
+| FR-11 one appointment per idempotency key | ✔ handler looks the key up first | ✔ `UNIQUE (idempotency_key)` + key/hash `CHECK` |
 
 ## Prisma notes
 - Prisma can't express exclusion constraints, `tstzrange` or partial indexes: add them as raw SQL in the M1 migration and keep this file as the reference. Prisma's schema is therefore not the whole truth.

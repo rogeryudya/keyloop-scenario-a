@@ -1,5 +1,5 @@
 import { ValidationError } from './errors';
-import { InvalidOpeningHoursError, OpeningHours } from './opening-hours';
+import { InvalidLocalDateError, InvalidOpeningHoursError, OpeningHours } from './opening-hours';
 import { TimeSlot } from './time-slot';
 
 const utc = (iso: string): Date => new Date(`${iso}Z`);
@@ -133,6 +133,93 @@ describe('OpeningHours', () => {
       expect(hours.contains(slot('2026-10-25T07:30', '2026-10-25T08:30'))).toBe(false);
       expect(hours.contains(slot('2026-10-25T08:00', '2026-10-25T09:00'))).toBe(true);
       expect(hours.contains(slot('2026-10-25T17:00', '2026-10-25T18:00'))).toBe(true);
+    });
+  });
+
+  describe('windowOn', () => {
+    const hoursIn = (timeZone: string, opensAt = '08:00', closesAt = '18:00'): OpeningHours =>
+      OpeningHours.of({ opensAt, closesAt, timeZone });
+
+    // [case, zone, local date, expected UTC start, expected UTC end]
+    it.each([
+      [
+        'a fixed-offset zone (Bangkok, UTC+7)',
+        'Asia/Bangkok',
+        '2026-10-13',
+        '10-13T01:00',
+        '10-13T11:00',
+      ],
+      [
+        'a half-hour offset zone (Kolkata, UTC+5:30)',
+        'Asia/Kolkata',
+        '2026-10-13',
+        '10-13T02:30',
+        '10-13T12:30',
+      ],
+      [
+        'a zone behind UTC (New York, UTC-4)',
+        'America/New_York',
+        '2026-10-13',
+        '10-13T12:00',
+        '10-13T22:00',
+      ],
+      [
+        'London the day before clocks go forward (GMT)',
+        'Europe/London',
+        '2026-03-28',
+        '03-28T08:00',
+        '03-28T18:00',
+      ],
+      [
+        'London the day clocks go forward (BST)',
+        'Europe/London',
+        '2026-03-29',
+        '03-29T07:00',
+        '03-29T17:00',
+      ],
+      [
+        'London the day clocks go back (GMT)',
+        'Europe/London',
+        '2026-10-25',
+        '10-25T08:00',
+        '10-25T18:00',
+      ],
+    ])('returns the window in %s', (_case, timeZone, date, from, to) => {
+      const window = hoursIn(timeZone).windowOn(date);
+
+      expect(window.equals(slot(`2026-${from}`, `2026-${to}`))).toBe(true);
+    });
+
+    it('treats the date as local: early opening in Bangkok starts on the previous UTC day', () => {
+      const window = hoursIn('Asia/Bangkok', '06:00', '10:00').windowOn('2026-10-13');
+
+      expect(window.equals(slot('2026-10-12T23:00', '2026-10-13T03:00'))).toBe(true);
+    });
+
+    it('returns a window that contains() accepts end to end', () => {
+      const hours = hoursIn('Europe/London');
+
+      expect(hours.contains(hours.windowOn('2026-03-29'))).toBe(true);
+    });
+
+    it.each([
+      '2026-02-30',
+      '2026-13-01',
+      '2026-00-10',
+      '2026-1-05',
+      '13/10/2026',
+      '2026-10-13T00:00',
+      '',
+    ])('rejects the invalid date %p', (date) => {
+      const error = thrownBy(() => hoursIn('Asia/Bangkok').windowOn(date));
+
+      expect(error).toBeInstanceOf(InvalidLocalDateError);
+      expect(error).toBeInstanceOf(ValidationError);
+      expect(error).toMatchObject({ code: 'INVALID_DATE', details: [{ field: 'date' }] });
+    });
+
+    it('accepts 29 February in a leap year', () => {
+      expect(() => hoursIn('Asia/Bangkok').windowOn('2028-02-29')).not.toThrow();
     });
   });
 });

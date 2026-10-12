@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsISO8601, IsUUID, Matches } from 'class-validator';
 
 /** Date-time with an explicit offset (`Z` or `±HH:mm`), so the instant is unambiguous (A-7). */
-const WITH_OFFSET = /(Z|[+-]\d{2}:\d{2})$/;
+export const WITH_OFFSET = /(Z|[+-]\d{2}:\d{2})$/;
 
 export class CreateAppointmentRequestDto {
   @ApiProperty({ format: 'uuid', example: '50000000-0000-4000-8000-000000000001' })

@@ -16,27 +16,33 @@ Unversioned: `/health`, `/docs`.
 | GET | `/health` | Liveness + DB check (`SELECT 1`, 2 s timeout) | NFR-1 | done |
 | GET | `/v1/dealerships` | List dealerships (cursor pagination) | FR-10 | done |
 | GET | `/v1/dealerships/:id` | One dealership + the service types it supports | FR-10 | done |
+| GET | `/v1/dealerships/:id/availability?serviceTypeId=&date=` | Bookable slots for a service type on a local date (15-min grid, local time with offset) | FR-7 | done |
 | GET | `/v1/service-types` | List service types with durations (cursor pagination) | FR-10 | done |
+| GET | `/v1/appointments?dealershipId=&customerId=&from=&to=` | List appointments of a dealership and/or customer (cursor pagination, newest first) | FR-9 | done |
 | POST | `/v1/appointments` | Book an appointment; bay and technician are allocated (201 + `Location`) | FR-1…FR-5 | done |
 | GET | `/v1/appointments/:id` | One appointment with linked dealership, bay, technician, service type, customer, vehicle | FR-6 | done |
+| POST | `/v1/appointments/:id/cancel` | Cancel a confirmed appointment; frees its bay and technician (200 + the updated appointment) | FR-8 | done |
 
 ### Module error codes
 | Status | `code` | Endpoint | When |
 |---|---|---|---|
-| 404 | `DEALERSHIP_NOT_FOUND` | `GET /v1/dealerships/:id`, `POST /v1/appointments` | No dealership with that id (BR-13) |
-| 404 | `SERVICE_TYPE_NOT_FOUND` | `POST /v1/appointments` | No service type with that id (BR-13) |
+| 404 | `DEALERSHIP_NOT_FOUND` | `GET /v1/dealerships/:id`, `GET …/availability`, `POST /v1/appointments` | No dealership with that id (BR-13) |
+| 404 | `SERVICE_TYPE_NOT_FOUND` | `GET …/availability`, `POST /v1/appointments` | No service type with that id (BR-13) |
 | 404 | `CUSTOMER_NOT_FOUND` | `POST /v1/appointments` | No customer with that id (BR-13) |
 | 404 | `VEHICLE_NOT_FOUND` | `POST /v1/appointments` | No vehicle with that id (BR-13) |
-| 404 | `APPOINTMENT_NOT_FOUND` | `GET /v1/appointments/:id` | No appointment with that id |
+| 404 | `APPOINTMENT_NOT_FOUND` | `GET /v1/appointments/:id`, `POST …/:id/cancel` | No appointment with that id |
+| 422 | `IDEMPOTENCY_KEY_REUSED` | `POST /v1/appointments` | The `Idempotency-Key` was already used for a different request body (FR-11, A-16) |
+| 422 | `APPOINTMENT_NOT_CANCELLABLE` | `POST /v1/appointments/:id/cancel` | The appointment is not `CONFIRMED` (already cancelled) (BR-12) |
 | 422 | `VEHICLE_NOT_OWNED_BY_CUSTOMER` | `POST /v1/appointments` | The vehicle belongs to another customer (BR-5) |
 | 422 | `APPOINTMENT_IN_PAST` | `POST /v1/appointments` | `start` is not after the current time (BR-3) |
 | 422 | `OUTSIDE_OPENING_HOURS` | `POST /v1/appointments` | `[start, start + duration)` doesn't fit in one day's opening hours, local time (BR-4) |
-| 422 | `SERVICE_TYPE_NOT_SUPPORTED` | `POST /v1/appointments` | No technician at the dealership is qualified for the service type (BR-6) |
+| 422 | `SERVICE_TYPE_NOT_SUPPORTED` | `GET …/availability`, `POST /v1/appointments` | No technician at the dealership is qualified for the service type (BR-6). Same code on both endpoints; the message differs (A-14) |
 | 409 | `NO_SERVICE_BAY_AVAILABLE` | `POST /v1/appointments` | Every bay at the dealership is busy for part of the slot (BR-7) |
 | 409 | `NO_TECHNICIAN_AVAILABLE` | `POST /v1/appointments` | Every qualified technician is busy for part of the slot (BR-8) |
 | 409 | `APPOINTMENT_CONFLICT` | `POST /v1/appointments` | Concurrent bookings kept taking the free resources; still failing after 3 retries (BR-10). Safe to retry |
 
-`POST /v1/appointments` checks in this order and reports the first failure: request shape (400) → dealership,
+`POST /v1/appointments` checks in this order and reports the first failure: request shape and `Idempotency-Key` format (400) →
+known `Idempotency-Key` (replay `201`, or `422 IDEMPOTENCY_KEY_REUSED`) → dealership,
 service type, customer, vehicle exist (404) → vehicle ownership (422) → future start, opening hours (422) →
 service supported (422) → bay (409) → technician (409) (A-13).
 
@@ -58,6 +64,7 @@ Record every API change here. Mark breaking changes clearly; they require a new 
 - v1: initial
 - v1 (M1): added `GET /v1/dealerships`, `GET /v1/dealerships/:id`, `GET /v1/service-types` (non-breaking)
 - v1 (M2): added `POST /v1/appointments`, `GET /v1/appointments/:id` (non-breaking)
+- v1 (M3): added `GET /v1/dealerships/:id/availability`, `POST /v1/appointments/:id/cancel`, `GET /v1/appointments`; optional `Idempotency-Key` header on `POST /v1/appointments` (non-breaking)
 
 ## Examples
 
@@ -107,6 +114,24 @@ Response `200`
 ```
 `supportedServiceTypeIds`: service types at least one technician here is qualified for (BR-6, A-12). Booking any other type returns `SERVICE_TYPE_NOT_SUPPORTED`.
 Response `404`: `DEALERSHIP_NOT_FOUND`. A malformed id → `400 VALIDATION_FAILED` with `details[0].field = "id"`.
+
+### GET /v1/dealerships/:id/availability?serviceTypeId=…&date=2030-01-15
+`date` is a calendar date in the dealership's time zone (A-14). Slots are 15 minutes apart counted from
+opening time (A-9), end by closing time, start after now, and have a free bay and qualified technician
+for the whole service; any of them can be booked with `POST /v1/appointments` using its `start`.
+Response `200` (Bangkok, oil change = 30 min):
+```json
+{
+  "data": [
+    { "start": "2030-01-15T08:00:00+07:00", "end": "2030-01-15T08:30:00+07:00" },
+    { "start": "2030-01-15T08:15:00+07:00", "end": "2030-01-15T08:45:00+07:00" },
+    { "start": "2030-01-15T17:30:00+07:00", "end": "2030-01-15T18:00:00+07:00" }
+  ]
+}
+```
+(truncated). Times carry the dealership's UTC offset at that instant. A day that is over, or fully booked,
+returns `{ "data": [] }`. Errors: `400 VALIDATION_FAILED` (bad id, `serviceTypeId` or `date`),
+`404 DEALERSHIP_NOT_FOUND` / `SERVICE_TYPE_NOT_FOUND`, `422 SERVICE_TYPE_NOT_SUPPORTED`.
 
 ### GET /v1/service-types
 Response `200`
@@ -175,3 +200,23 @@ Response `200`
 ```
 Times are returned in UTC; convert with `dealership.timeZone` for display.
 Response `404`: `APPOINTMENT_NOT_FOUND`. A malformed id → `400 VALIDATION_FAILED` with `details[0].field = "id"`.
+
+### POST /v1/appointments/:id/cancel
+No body. Response `200`: the appointment in the `GET /v1/appointments/:id` shape, with
+`"status": "CANCELLED"` and `"cancelledAt"` set. Its bay and technician are free again at once, so the slot
+reappears in availability and can be booked (BR-9).
+Errors: `404 APPOINTMENT_NOT_FOUND`, `422 APPOINTMENT_NOT_CANCELLABLE` (already cancelled, BR-12),
+`400 VALIDATION_FAILED` for a malformed id.
+
+### GET /v1/appointments?customerId=…&from=2030-01-15T00:00:00%2B07:00&limit=20
+At least one of `dealershipId` / `customerId` is required (both → both must match); `from` (inclusive) and
+`to` (exclusive) filter on the start time and need an offset (A-15). Cancelled appointments are included.
+Response `200`: `{ "data": [ <appointment as in GET /v1/appointments/:id>, … ], "meta": { "nextCursor": null, "limit": 20 } }`,
+newest booking first. Errors: `400 VALIDATION_FAILED` (no filter, bad UUID/time/limit), `400 INVALID_CURSOR`.
+
+### POST /v1/appointments with `Idempotency-Key`
+Optional header, e.g. `Idempotency-Key: 0b9c7a52-6a8e-4c3e-9d0f-2f7f1c1e4a10` (FR-11, A-16). The first successful
+request books as usual. Repeating it with the same key and the same booking returns the **same** `201`, body and
+`Location`, with no second appointment; this works even after the start time has passed. The same key with a
+different booking → `422 IDEMPOTENCY_KEY_REUSED`. A malformed key → `400 VALIDATION_FAILED`
+(`details[0].field = "Idempotency-Key"`). Failed requests aren't recorded, so retrying one with the same key is safe.

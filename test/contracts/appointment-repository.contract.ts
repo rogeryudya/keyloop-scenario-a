@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { AppointmentStatus } from '../../src/modules/appointments/domain/appointment-status';
 import { Appointment } from '../../src/modules/appointments/domain/appointment.entity';
+import { AppointmentConflictError } from '../../src/modules/appointments/domain/appointment.errors';
 import { AppointmentRepository } from '../../src/modules/appointments/domain/appointment.repository';
 import { TimeSlot } from '../../src/shared/domain/time-slot';
 
@@ -94,6 +95,48 @@ export function appointmentRepositoryContract(make: () => Promise<AppointmentRep
       appointment.cancel(BOOKED_AT);
 
       expect((await repository.findById(appointment.id))?.status).toBe(AppointmentStatus.Confirmed);
+    });
+  });
+
+  describe('Idempotency-Key (FR-11)', () => {
+    const stamped = (key: string, start = '2030-01-15T03:00:00.000Z', bay = BAY_1) =>
+      Appointment.restore({
+        ...anAppointment({ start, bay }).toSnapshot(),
+        idempotency: { key, requestHash: 'a'.repeat(64) },
+      });
+
+    it('stores the key and hash and finds the appointment by key', async () => {
+      const appointment = stamped('k-1');
+      await repository.save(appointment);
+
+      const found = await repository.findByIdempotencyKey('k-1');
+
+      expect(found?.toSnapshot()).toEqual(appointment.toSnapshot());
+    });
+
+    it('returns null for an unknown key; keys are case-sensitive', async () => {
+      await repository.save(stamped('Key'));
+
+      await expect(repository.findByIdempotencyKey('key')).resolves.toBeNull();
+    });
+
+    it('keeps the key when the appointment is cancelled', async () => {
+      const appointment = stamped('k-1');
+      await repository.save(appointment);
+      appointment.cancel(BOOKED_AT);
+      await repository.save(appointment);
+
+      expect((await repository.findByIdempotencyKey('k-1'))?.status).toBe(
+        AppointmentStatus.Cancelled,
+      );
+    });
+
+    it('rejects a second appointment with the same key as a lost race (retryable)', async () => {
+      await repository.save(stamped('k-1'));
+
+      await expect(
+        repository.save(stamped('k-1', '2030-01-16T03:00:00.000Z', BAY_2)),
+      ).rejects.toThrow(AppointmentConflictError);
     });
   });
 

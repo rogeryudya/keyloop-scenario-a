@@ -18,6 +18,8 @@ const row: AppointmentRow = {
   cancelledAt: new Date('2026-10-12T11:00:00.000Z'),
   createdAt: new Date('2026-10-12T10:00:00.000Z'),
   updatedAt: new Date('2026-10-12T11:00:00.000Z'),
+  idempotencyKey: null,
+  requestHash: null,
 };
 
 describe('AppointmentMapper', () => {
@@ -67,7 +69,28 @@ describe('AppointmentMapper', () => {
       status: 'CONFIRMED',
       cancelledAt: null,
       createdAt: row.createdAt,
+      idempotencyKey: null,
+      requestHash: null,
     });
+  });
+
+  it('maps the Idempotency-Key and request hash both ways (FR-11)', () => {
+    const keyed = { ...row, idempotencyKey: 'k-1', requestHash: 'a'.repeat(64) };
+
+    const appointment = AppointmentMapper.toDomain(keyed);
+
+    expect(appointment.toSnapshot().idempotency).toEqual({
+      key: 'k-1',
+      requestHash: 'a'.repeat(64),
+    });
+    expect(AppointmentMapper.toPersistence(appointment)).toMatchObject({
+      idempotencyKey: 'k-1',
+      requestHash: 'a'.repeat(64),
+    });
+  });
+
+  it('leaves idempotency unset for a row without a key', () => {
+    expect(AppointmentMapper.toDomain(row).toSnapshot()).not.toHaveProperty('idempotency');
   });
 
   it('round-trips an entity through persistence', () => {

@@ -8,6 +8,8 @@ export class CreateAppointmentCommand extends Command<{ id: string }> {
     public readonly dealershipId: string,
     public readonly serviceTypeId: string,
     public readonly start: Date,
+    /** FR-11: optional `Idempotency-Key` header; already validated by presentation (A-16). */
+    public readonly idempotencyKey?: string,
   ) {
     super();
   }

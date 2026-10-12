@@ -160,6 +160,59 @@ describe('Appointments (e2e)', () => {
       });
     });
 
+    describe('Idempotency-Key (FR-11)', () => {
+      const withKey = (key: string, body: Record<string, unknown>) =>
+        http().post('/v1/appointments').set('Idempotency-Key', key).send(body);
+
+      it('replays the same 201, id and Location for the same key and body', async () => {
+        const first = await withKey('k-1', booking()).expect(201);
+
+        const second = await withKey('k-1', booking()).expect(201);
+
+        expect(second.body).toEqual(first.body);
+        expect(second.headers.location).toBe(first.headers.location);
+        expect(await prisma.appointment.count()).toBe(1);
+      });
+
+      it('treats the same start in another offset as the same request', async () => {
+        const first = await withKey('k-1', booking()).expect(201);
+
+        const second = await withKey(
+          'k-1',
+          booking({ start: '2030-01-15T03:00:00Z' }), // = 10:00+07:00
+        ).expect(201);
+
+        expect(second.body).toEqual(first.body);
+      });
+
+      it('returns 422 IDEMPOTENCY_KEY_REUSED for the same key with a different body', async () => {
+        await withKey('k-1', booking()).expect(201);
+
+        const res = await withKey('k-1', booking({ start: '2030-01-15T11:00:00+07:00' })).expect(
+          422,
+        );
+
+        expect(errorOf(res).code).toBe('IDEMPOTENCY_KEY_REUSED');
+        expect(await prisma.appointment.count()).toBe(1);
+      });
+
+      it('books separately for different keys', async () => {
+        await withKey('k-1', booking()).expect(201);
+        await withKey('k-2', booking()).expect(201);
+
+        expect(await prisma.appointment.count()).toBe(2);
+      });
+
+      it('returns 400 VALIDATION_FAILED for a malformed key', async () => {
+        const res = await withKey('has spaces', booking()).expect(400);
+
+        expect(errorOf(res)).toMatchObject({
+          code: 'VALIDATION_FAILED',
+          details: [{ field: 'Idempotency-Key' }],
+        });
+      });
+    });
+
     it('is only reachable under /v1', async () => {
       await http().post('/appointments').send(booking()).expect(404);
     });
@@ -212,6 +265,171 @@ describe('Appointments (e2e)', () => {
       expect((res.body as ErrorJson).error).toMatchObject({
         code: 'VALIDATION_FAILED',
         details: [{ field: 'id' }],
+      });
+    });
+  });
+
+  describe('POST /v1/appointments/:id/cancel', () => {
+    const book = async (overrides: Record<string, unknown> = {}): Promise<string> => {
+      const res = await http().post('/v1/appointments').send(booking(overrides)).expect(201);
+      return (res.body as { id: string }).id;
+    };
+    const cancel = (id: string) => http().post(`/v1/appointments/${id}/cancel`);
+
+    it('returns 200 with the cancelled appointment (FR-8)', async () => {
+      const id = await book();
+
+      const res = await cancel(id).expect(200);
+
+      expect(res.body).toMatchObject({ id, status: 'CANCELLED', cancelledAt: NOW });
+      const reread = await http().get(`/v1/appointments/${id}`).expect(200);
+      expect(reread.body).toMatchObject({ status: 'CANCELLED', cancelledAt: NOW });
+    });
+
+    it('frees the slot: availability shows it again and booking it succeeds (acceptance)', async () => {
+      // Hanoi has one bay, so a booking at 10:00 removes 10:00 from availability.
+      const startsAt = async (): Promise<string[]> => {
+        const res = await http()
+          .get(`/v1/dealerships/${HANOI}/availability`)
+          .query({ serviceTypeId: OIL_CHANGE, date: '2030-01-15' })
+          .expect(200);
+        return (res.body as { data: { start: string }[] }).data.map((s) => s.start);
+      };
+      const id = await book({ dealershipId: HANOI });
+      expect(await startsAt()).not.toContain('2030-01-15T10:00:00+07:00');
+
+      await cancel(id).expect(200);
+
+      expect(await startsAt()).toContain('2030-01-15T10:00:00+07:00');
+      await book({ dealershipId: HANOI });
+    });
+
+    it('returns 422 APPOINTMENT_NOT_CANCELLABLE when already cancelled (BR-12)', async () => {
+      const id = await book();
+      await cancel(id).expect(200);
+
+      const res = await cancel(id).expect(422);
+
+      expect((res.body as ErrorJson).error.code).toBe('APPOINTMENT_NOT_CANCELLABLE');
+    });
+
+    it('returns 404 APPOINTMENT_NOT_FOUND for an unknown id', async () => {
+      const res = await cancel('79000000-0000-4000-8000-000000000099').expect(404);
+
+      expect((res.body as ErrorJson).error.code).toBe('APPOINTMENT_NOT_FOUND');
+    });
+
+    it('returns 400 VALIDATION_FAILED for a malformed id', async () => {
+      const res = await cancel('not-a-uuid').expect(400);
+
+      expect((res.body as ErrorJson).error).toMatchObject({
+        code: 'VALIDATION_FAILED',
+        details: [{ field: 'id' }],
+      });
+    });
+  });
+
+  describe('GET /v1/appointments', () => {
+    interface PageJson {
+      data: { id: string; status: string; customer: { id: string } }[];
+      meta: { nextCursor: string | null; limit: number };
+    }
+    const errorOf = (res: { body: unknown }) => (res.body as ErrorJson).error;
+    const list = (query: Record<string, string | number>) =>
+      http().get('/v1/appointments').query(query);
+    const book = async (overrides: Record<string, unknown>): Promise<string> => {
+      const res = await http().post('/v1/appointments').send(booking(overrides)).expect(201);
+      return (res.body as { id: string }).id;
+    };
+
+    it("lists a dealership's appointments in the page envelope (FR-9)", async () => {
+      const id = await book({});
+      await book({ dealershipId: HANOI });
+
+      const res = await list({ dealershipId: BANGKOK }).expect(200);
+      const page = res.body as PageJson;
+
+      expect(page.data.map((a) => a.id)).toEqual([id]);
+      expect(page.meta).toEqual({ nextCursor: null, limit: 20 });
+      expect(page.data[0]).toMatchObject({ status: 'CONFIRMED', customer: { id: SOMSAK } });
+    });
+
+    it("lists a customer's appointments across dealerships, cancelled ones included", async () => {
+      const bangkok = await book({});
+      const hanoi = await book({ dealershipId: HANOI });
+      await http().post(`/v1/appointments/${bangkok}/cancel`).expect(200);
+
+      const res = await list({ customerId: SOMSAK }).expect(200);
+      const statusById = Object.fromEntries(
+        (res.body as PageJson).data.map((a) => [a.id, a.status]),
+      );
+
+      expect(statusById).toEqual({ [bangkok]: 'CANCELLED', [hanoi]: 'CONFIRMED' });
+    });
+
+    it('filters by start time with from (inclusive) and to (exclusive)', async () => {
+      await book({ start: '2030-01-15T09:00:00+07:00' });
+      const inside = await book({ start: '2030-01-15T10:00:00+07:00' });
+      await book({ start: '2030-01-15T11:00:00+07:00' });
+
+      const res = await list({
+        dealershipId: BANGKOK,
+        from: '2030-01-15T10:00:00+07:00',
+        to: '2030-01-15T11:00:00+07:00',
+      }).expect(200);
+
+      expect((res.body as PageJson).data.map((a) => a.id)).toEqual([inside]);
+    });
+
+    it('pages with limit and nextCursor without gaps or repeats', async () => {
+      const booked = [];
+      for (const hour of ['09', '10', '11']) {
+        booked.push(await book({ start: `2030-01-15T${hour}:00:00+07:00` }));
+      }
+
+      const first = (await list({ dealershipId: BANGKOK, limit: 2 }).expect(200)).body as PageJson;
+      expect(first.data).toHaveLength(2);
+      expect(first.meta.nextCursor).not.toBeNull();
+      const second = (
+        await list({
+          dealershipId: BANGKOK,
+          limit: 2,
+          cursor: first.meta.nextCursor ?? '',
+        }).expect(200)
+      ).body as PageJson;
+
+      expect(second.meta.nextCursor).toBeNull();
+      const seen = [...first.data, ...second.data].map((a) => a.id);
+      expect([...seen].sort()).toEqual([...booked].sort());
+    });
+
+    describe('400', () => {
+      it('requires dealershipId or customerId (A-15)', async () => {
+        const res = await list({}).expect(400);
+
+        expect(errorOf(res).code).toBe('VALIDATION_FAILED');
+        expect(errorOf(res).details).toContainEqual({
+          field: 'customerId',
+          issue: 'customerId or dealershipId is required',
+        });
+      });
+
+      it.each([
+        ['dealershipId', { dealershipId: 'nope' }],
+        ['customerId', { customerId: 'nope' }],
+        ['from', { dealershipId: BANGKOK, from: '2030-01-15T10:00:00' }], // no offset
+        ['to', { dealershipId: BANGKOK, to: 'tomorrow' }],
+        ['limit', { dealershipId: BANGKOK, limit: 101 }],
+      ])('rejects an invalid %s', async (field, query) => {
+        const res = await list(query).expect(400);
+
+        expect(errorOf(res).details.map((d) => d.field)).toContain(field);
+      });
+
+      it('returns INVALID_CURSOR for a cursor this API did not produce', async () => {
+        const res = await list({ dealershipId: BANGKOK, cursor: 'bm9wZQ' }).expect(400);
+
+        expect(errorOf(res).code).toBe('INVALID_CURSOR');
       });
     });
   });

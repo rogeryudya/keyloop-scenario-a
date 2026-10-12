@@ -136,19 +136,22 @@ model Vehicle {
 /// Exclusion constraints (no double-booking, BR-10), CHECK constraints and the partial index
 /// (dealership_id, start_at) WHERE status = 'CONFIRMED': raw SQL in the migration.
 model Appointment {
-  id            String            @id @db.Uuid
-  dealershipId  String            @map("dealership_id") @db.Uuid
-  serviceBayId  String            @map("service_bay_id") @db.Uuid
-  technicianId  String            @map("technician_id") @db.Uuid
-  serviceTypeId String            @map("service_type_id") @db.Uuid
-  customerId    String            @map("customer_id") @db.Uuid
-  vehicleId     String            @map("vehicle_id") @db.Uuid
-  startAt       DateTime          @map("start_at") @db.Timestamptz(6)
-  endAt         DateTime          @map("end_at") @db.Timestamptz(6)
-  status        AppointmentStatus @default(CONFIRMED)
-  cancelledAt   DateTime?         @map("cancelled_at") @db.Timestamptz(6)
-  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String            @id @db.Uuid
+  dealershipId   String            @map("dealership_id") @db.Uuid
+  serviceBayId   String            @map("service_bay_id") @db.Uuid
+  technicianId   String            @map("technician_id") @db.Uuid
+  serviceTypeId  String            @map("service_type_id") @db.Uuid
+  customerId     String            @map("customer_id") @db.Uuid
+  vehicleId      String            @map("vehicle_id") @db.Uuid
+  startAt        DateTime          @map("start_at") @db.Timestamptz(6)
+  endAt          DateTime          @map("end_at") @db.Timestamptz(6)
+  status         AppointmentStatus @default(CONFIRMED)
+  cancelledAt    DateTime?         @map("cancelled_at") @db.Timestamptz(6)
+  /// FR-11 (ADR-0007): the client's Idempotency-Key and a sha256 of the normalised request; both or neither (CHECK in the migration).
+  idempotencyKey String?           @unique @map("idempotency_key") @db.VarChar(255)
+  requestHash    String?           @map("request_hash") @db.Char(64)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   dealership    Dealership              @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
   // Composite FKs: bay and technician belong to the same dealership.
