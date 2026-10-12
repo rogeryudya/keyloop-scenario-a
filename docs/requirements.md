@@ -91,6 +91,7 @@ Made where the brief is silent. Format: `A-n: assumption — reason`.
 - A-11: Opening hours are whole minutes (`HH:mm`, `00:00`–`23:59`), and an appointment must start and end on the same local day; ending exactly at closing time is allowed. — Follows from A-6 (one daily window, no overnight opening) and BR-2 (half-open intervals).
 - A-12: `GET /v1/dealerships/:id` returns the dealership plus `supportedServiceTypeIds` (service types at least one of its technicians is qualified for, BR-6); bays and technicians aren't exposed. Reference lists use the standard `createdAt DESC, id DESC` cursor order. — Enough for a client to build a booking request (FR-10) without exposing staff data.
 - A-13: When neither a bay nor a qualified technician is free, the booking fails with `NO_SERVICE_BAY_AVAILABLE` (BR-7 is checked before BR-8); `SERVICE_TYPE_NOT_SUPPORTED` (BR-6) is checked before both. — The brief names no precedence; reporting one stable code keeps clients simple.
+- A-14: Availability (FR-7) takes a calendar date (`YYYY-MM-DD`) meaning that day in the dealership's time zone; storage stays UTC (A-7). The 15-minute grid (A-9) counts from `opensAt` (opening 08:10 → 08:10, 08:25, …). Asking for a service type the dealership can't perform returns 422 `SERVICE_TYPE_NOT_SUPPORTED` (same code as booking, BR-6) with an availability-specific message. — Local dates match how customers think; one stable code keeps clients simple.
 
 ## 7. Open questions
 For the interviewer. Don't block on them; the matching assumption applies until answered.

@@ -1,11 +1,11 @@
 # M3 — Availability query and appointment lifecycle
 
-**Status:** `todo`
+**Status:** `in-progress`
 **Goal:** clients can see when a service can be booked, cancel appointments, and list them.
 **Requirements:** FR-7, FR-8, FR-9, FR-11, BR-9, BR-12
 
 ## Tasks
-- [ ] FR-7 `GetAvailabilityQuery`: for dealership + service type + date, return start times on a 15-minute grid within opening hours, not in the past, where `ResourceAllocator` would succeed. Load the day's appointments once and compute in memory (no query per slot)
+- [x] FR-7 `GetAvailabilityQuery`: for dealership + service type + date, return start times on a 15-minute grid within opening hours, not in the past, where `ResourceAllocator` would succeed. Load the day's appointments once and compute in memory (no query per slot)
 - [ ] `GET /v1/dealerships/:id/availability?serviceTypeId=&date=` → `{ data: [{ start, end }] }` in the dealership's time zone offset
 - [ ] Unit tests: fully free day, fully booked day, slots blocked only by technician qualification, last slot that just fits before closing, today with past slots removed
 - [ ] FR-8 `CancelAppointmentCommand`: `Appointment.cancel(now)` (BR-12); `POST /v1/appointments/:id/cancel` → 200 with the updated appointment; cancelled slot becomes bookable again (integration test)
@@ -20,3 +20,5 @@
 
 ## Notes
 - If time is short, FR-9 and FR-11 can be dropped; record that in the design notes.
+- FR-7: slots are computed by the pure domain service `Availability.slotsOn`, which reuses `ResourceAllocator` per grid point so availability and booking can't disagree. The handler loads the day's bookings once via the existing `findConfirmedOverlapping(dealershipId, openingWindow)`; no new repository method. `OpeningHours.windowOn(date)` converts a local date to UTC instants (DST-safe). Decisions: A-14.
+- The milestone's unit-test list (free day, fully booked, qualification-only block, last slot before closing, today minus past slots) is already covered in `availability.spec.ts`; the next unchecked unit-test task needs only a check, not new tests.

@@ -69,13 +69,18 @@ export class AppointmentNotCancellableError extends BusinessRuleError {
   }
 }
 
-/** BR-6. */
+/** BR-6. The message varies by use case; the code doesn't. */
 export class ServiceTypeNotSupportedError extends BusinessRuleError {
-  constructor() {
-    super(
-      'SERVICE_TYPE_NOT_SUPPORTED',
-      'No technician at this dealership is qualified for the service type',
-      [{ field: 'serviceTypeId', issue: 'not offered by this dealership' }],
+  constructor(message = 'No technician at this dealership is qualified for the service type') {
+    super('SERVICE_TYPE_NOT_SUPPORTED', message, [
+      { field: 'serviceTypeId', issue: 'not offered by this dealership' },
+    ]);
+  }
+
+  /** FR-7: asking for availability of a service the dealership doesn't offer. */
+  static forAvailability(): ServiceTypeNotSupportedError {
+    return new ServiceTypeNotSupportedError(
+      'This dealership does not offer the service type, so it has no availability for it',
     );
   }
 }

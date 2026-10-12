@@ -4,6 +4,7 @@ import { AppointmentReadModel } from './application/ports/appointment-read-model
 import { BookableResources } from './application/ports/bookable-resources';
 import { BookingParties } from './application/ports/booking-parties';
 import { GetAppointmentHandler } from './application/queries/get-appointment/get-appointment.handler';
+import { GetAvailabilityHandler } from './application/queries/get-availability/get-availability.handler';
 import { AppointmentRepository } from './domain/appointment.repository';
 import { PrismaAppointmentReadModel } from './infrastructure/prisma-appointment-read-model';
 import { PrismaAppointmentRepository } from './infrastructure/prisma-appointment.repository';
@@ -17,6 +18,7 @@ import { AppointmentController } from './presentation/appointment.controller';
   providers: [
     CreateAppointmentHandler,
     GetAppointmentHandler,
+    GetAvailabilityHandler,
     { provide: AppointmentRepository, useClass: PrismaAppointmentRepository },
     { provide: AppointmentReadModel, useClass: PrismaAppointmentReadModel },
     { provide: BookableResources, useClass: PrismaBookableResources },
