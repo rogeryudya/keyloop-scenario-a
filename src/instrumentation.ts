@@ -1,18 +1,19 @@
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
+import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { loadDotEnv } from './config/dotenv';
 
 /**
  * OpenTelemetry tracing (docs/local-dev/observability.md). Imported first in `main.ts`, so the
- * instrumentations patch `http` and `pg` (via require hooks) before Nest or Prisma load them.
+ * instrumentations patch `http`, `pg` and `pino` (via require hooks) before Nest or Prisma load them.
  * No Express instrumentation: Nest 12 is ESM and imports express outside the require hook.
  * Exporter settings come from the standard `OTEL_*` env vars, read by the SDK itself.
  */
 export const DEFAULT_SERVICE_NAME = 'keyloop-api';
 
 export interface Telemetry {
-  /** Flushes pending spans. Call after the app has closed. */
+  /** Flushes pending spans and logs. Call after the app has closed. */
   shutdown(): Promise<void>;
 }
 
@@ -32,6 +33,8 @@ export function startTelemetry(env: NodeJS.ProcessEnv = process.env): Telemetry 
       // Health probes run every few seconds (Compose, load balancers); tracing them is noise.
       new HttpInstrumentation({ ignoreIncomingRequestHook: (req) => req.url === '/health' }),
       new PgInstrumentation(),
+      // Adds trace_id/span_id to every log line and sends the logs over OTLP (Loki in otel-lgtm).
+      new PinoInstrumentation(),
     ],
   });
   sdk.start();

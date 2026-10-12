@@ -14,6 +14,21 @@ describe('loadAppConfig', () => {
     expect(config.databaseUrl).toBe('postgres://u:p@h/db');
   });
 
+  it.each([
+    ['test', undefined, 'silent'],
+    ['development', undefined, 'info'],
+    ['production', undefined, 'info'],
+    ['test', 'debug', 'debug'],
+  ])('NODE_ENV=%s, LOG_LEVEL=%s → log level %s', (nodeEnv, logLevel, expected) => {
+    const config = loadAppConfig({
+      NODE_ENV: nodeEnv,
+      DATABASE_URL: 'postgres://u:p@h/db',
+      ...(logLevel !== undefined && { LOG_LEVEL: logLevel }),
+    });
+
+    expect(config.logLevel).toBe(expected);
+  });
+
   it('fails fast on invalid env', () => {
     expect(() => loadAppConfig({ NODE_ENV: 'test' })).toThrow(InvalidEnvironmentError);
   });

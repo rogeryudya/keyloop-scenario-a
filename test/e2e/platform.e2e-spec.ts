@@ -30,6 +30,29 @@ describe('Platform (e2e)', () => {
     });
   });
 
+  describe('request id', () => {
+    it('returns a generated x-request-id', async () => {
+      const res = await http().get('/v1/service-types').expect(200);
+
+      expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    });
+
+    it('echoes a caller-supplied x-request-id, also on errors', async () => {
+      const res = await http()
+        .get('/v1/does-not-exist')
+        .set('x-request-id', 'client-req-42')
+        .expect(404);
+
+      expect(res.headers['x-request-id']).toBe('client-req-42');
+    });
+
+    it('replaces an unsafe x-request-id', async () => {
+      const res = await http().get('/v1/service-types').set('x-request-id', 'a b c').expect(200);
+
+      expect(res.headers['x-request-id']).not.toBe('a b c');
+    });
+  });
+
   describe('error format', () => {
     it('returns the standard error JSON for an unknown route', async () => {
       const res = await http().get('/v1/does-not-exist').expect(404);

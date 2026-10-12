@@ -92,6 +92,14 @@ describe('validateEnv', () => {
     },
   );
 
+  it.each(['info', 'debug', 'silent'])('accepts LOG_LEVEL %s', (level) => {
+    expect(validateEnv({ DATABASE_URL: DB_URL, LOG_LEVEL: level }).LOG_LEVEL).toBe(level);
+  });
+
+  it('rejects an unknown LOG_LEVEL', () => {
+    expect(problemsOf({ DATABASE_URL: DB_URL, LOG_LEVEL: 'verbose' }).join()).toMatch(/LOG_LEVEL/);
+  });
+
   it('accepts an OTLP endpoint and service name', () => {
     const env = validateEnv({
       DATABASE_URL: DB_URL,

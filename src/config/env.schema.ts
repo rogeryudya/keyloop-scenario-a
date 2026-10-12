@@ -1,6 +1,7 @@
 import { plainToInstance, Type } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -10,6 +11,9 @@ import {
   Min,
   validateSync,
 } from 'class-validator';
+
+export const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
+export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export enum NodeEnv {
   Development = 'development',
@@ -27,6 +31,11 @@ export class EnvironmentVariables {
   @Min(1)
   @Max(65535)
   PORT: number = 3000;
+
+  /** pino level. Default: `info`, or `silent` when NODE_ENV=test. */
+  @IsOptional()
+  @IsIn(LOG_LEVELS, { message: `LOG_LEVEL must be one of: ${LOG_LEVELS.join(', ')}` })
+  LOG_LEVEL?: LogLevel;
 
   /** Secrets Manager secret holding RDS-format DB credentials. Takes precedence over DATABASE_URL. */
   @IsOptional()
