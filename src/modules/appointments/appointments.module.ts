@@ -3,11 +3,13 @@ import { CancelAppointmentHandler } from './application/commands/cancel-appointm
 import { CreateAppointmentHandler } from './application/commands/create-appointment/create-appointment.handler';
 import { AppointmentReadModel } from './application/ports/appointment-read-model';
 import { BookableResources } from './application/ports/bookable-resources';
+import { BookingMetrics } from './application/ports/booking-metrics';
 import { BookingParties } from './application/ports/booking-parties';
 import { GetAppointmentHandler } from './application/queries/get-appointment/get-appointment.handler';
 import { ListAppointmentsHandler } from './application/queries/list-appointments/list-appointments.handler';
 import { GetAvailabilityHandler } from './application/queries/get-availability/get-availability.handler';
 import { AppointmentRepository } from './domain/appointment.repository';
+import { OtelBookingMetrics } from './infrastructure/otel-booking-metrics';
 import { PrismaAppointmentReadModel } from './infrastructure/prisma-appointment-read-model';
 import { PrismaAppointmentRepository } from './infrastructure/prisma-appointment.repository';
 import { PrismaBookableResources } from './infrastructure/prisma-bookable-resources';
@@ -28,6 +30,7 @@ import { AvailabilityController } from './presentation/availability.controller';
     { provide: AppointmentReadModel, useClass: PrismaAppointmentReadModel },
     { provide: BookableResources, useClass: PrismaBookableResources },
     { provide: BookingParties, useClass: PrismaBookingParties },
+    { provide: BookingMetrics, useClass: OtelBookingMetrics },
   ],
 })
 export class AppointmentsModule {}

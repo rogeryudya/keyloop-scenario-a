@@ -87,7 +87,7 @@ services:
     profiles: ["app"]
     build: { context: ., target: runtime }
     ports: ["3000:3000"]
-    environment: { <<: *aws-env, PORT: "3000", DB_SECRET_ID: keyloop/docker/db, OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318, OTEL_SERVICE_NAME: keyloop-api }
+    environment: { <<: *aws-env, PORT: "3000", DB_SECRET_ID: keyloop/docker/db, OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318, OTEL_SERVICE_NAME: keyloop-api, OTEL_METRIC_EXPORT_INTERVAL: "10000" }
     depends_on: { migrate: { condition: service_completed_successfully }, otel-lgtm: { condition: service_started } }
     healthcheck: { test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health > /dev/null || exit 1"], interval: 5s, retries: 20 }
 

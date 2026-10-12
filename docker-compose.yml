@@ -101,6 +101,7 @@ services:
       DB_SECRET_ID: keyloop/docker/db
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
       OTEL_SERVICE_NAME: keyloop-api
+      OTEL_METRIC_EXPORT_INTERVAL: '10000'
     depends_on:
       migrate:
         condition: service_completed_successfully

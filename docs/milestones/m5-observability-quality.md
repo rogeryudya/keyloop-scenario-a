@@ -7,7 +7,7 @@
 ## Tasks
 - [x] OpenTelemetry: `instrumentation.ts`, auto-instrumentation (HTTP, Prisma/pg), a span per command/query handler with outcome attribute; traces visible in local Grafana
 - [x] Structured logging (pino) with request id + trace id correlation
-- [ ] Business metrics: `appointments_created_total`, `appointment_rejections_total{reason}`, `appointment_conflict_retries_total`
+- [x] Business metrics: `appointments_created_total`, `appointment_rejections_total{reason}`, `appointment_conflict_retries_total`
 - [ ] Optional Datadog Compose profile documented and verified with a trial key
 - [ ] Coverage review: domain + application ≥ 90%; add tests for any uncovered rule branch
 - [ ] Light load check: script firing ~200 concurrent booking requests; confirm no double-booking and record latency in design notes
@@ -24,3 +24,4 @@
 - New dependencies: `@opentelemetry/api` (tracing API used by the handler wrapper), `@opentelemetry/sdk-node` (SDK + OTLP exporter), `@opentelemetry/instrumentation-http` and `-pg` (HTTP and SQL spans); dev: `@opentelemetry/sdk-trace-base` (in-memory exporter for tests).
 - Task 2: verified on the Compose stack. A 409 booking sent with `x-request-id: verify-m5-logs-2` returns the same header. Its `request completed` line (level `warn`) is on stdout and in Loki with that `request_id` and the same `trace_id` as its trace in Tempo. New dependencies: `nestjs-pino` + `pino-http` + `pino` (structured request logging and Nest logger bridge), `@opentelemetry/instrumentation-pino` (adds `trace_id`/`span_id` and ships logs over OTLP).
 - Gotcha: pino-http puts the request id inside `req`, so a custom `req` serializer drops it. `request_id` is bound with `customProps` instead, which also tags any log written during the request.
+- Task 3: verified on the Compose stack. One 409, one 201 and one 404 booking give `appointments_created_total 1`, `appointment_rejections_total{reason="NO_SERVICE_BAY_AVAILABLE"} 1` and `{reason="VEHICLE_NOT_FOUND"} 1` in Prometheus; `http_server_request_duration_seconds` comes from the HTTP instrumentation. The handler reports through a `BookingMetrics` port, so the application layer has no OTel import. A 409 now shows as a trace, a log line with the same trace id, and a metric increment, which meets the first acceptance criterion. New dev dependency: `@opentelemetry/sdk-metrics` (in-memory meter for the adapter test).
