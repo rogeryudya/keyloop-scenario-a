@@ -10,7 +10,7 @@
 - [x] Ports: `AppointmentRepository` (`save`, `findById`, `findConfirmedOverlapping(dealershipId, slot)`, `countForTechniciansOnDay`) and a read port for bookable resources (dealership + opening hours, bays, qualified technicians), implemented by querying the `dealerships` module via the QueryBus or a read adapter (decide and record in the module README)
 - [x] `CreateAppointmentCommand` + handler (`@Transactional`): existence checks (BR-13) → vehicle ownership (BR-5) → future start (BR-3) → opening hours (BR-4) → load resources + overlapping appointments → allocate → `Appointment.create` → save → `{ id }`
 - [x] Race safety: Prisma adapter maps exclusion violation (SQLSTATE `23P01`) to `AppointmentConflictError`; handler retries the whole command up to 3 times (another free bay/technician may exist), then returns 409 `APPOINTMENT_CONFLICT`
-- [ ] `GetAppointmentQuery` + handler → `AppointmentView` (with dealership, bay, technician, service type, vehicle, customer ids and names)
+- [x] `GetAppointmentQuery` + handler → `AppointmentView` (with dealership, bay, technician, service type, vehicle, customer ids and names)
 - [ ] `POST /v1/appointments` → 201 + `Location`; `GET /v1/appointments/:id`
 - [ ] Handler unit tests with in-memory fakes + `FixedClock` for each error path
 - [ ] Integration: Prisma repository contract tests; **concurrency test**: 10 parallel requests for the same slot at a dealership with 1 bay → exactly 1 succeeds, 9 get 409; with 2 bays and 2 qualified technicians → exactly 2 succeed

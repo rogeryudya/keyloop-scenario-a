@@ -6,6 +6,7 @@ Booking (M2), availability and lifecycle (M3). Layer rules: [docs/architecture](
 | Port | Layer | Adapter | Purpose |
 |---|---|---|---|
 | `AppointmentRepository` | `domain/` | `PrismaAppointmentRepository` | Save/load the aggregate; overlapping `CONFIRMED` appointments; per-technician day load (BR-11) |
+| `AppointmentReadModel` | `application/ports/` | `PrismaAppointmentReadModel` | `AppointmentView` for queries (FR-6), no entity |
 | `BookableResources` | `application/ports/` | `PrismaBookableResources` | Dealership + opening hours, service type duration, bays and qualified technicians |
 | `BookingParties` | `application/ports/` | `PrismaBookingParties` | Customer exists; vehicle owner (BR-5, BR-13) |
 

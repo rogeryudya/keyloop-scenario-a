@@ -103,3 +103,12 @@ export class AppointmentConflictError extends ConflictError {
     super('APPOINTMENT_CONFLICT', 'The slot was taken by a concurrent booking; please try again');
   }
 }
+
+/** FR-6. */
+export class AppointmentNotFoundError extends NotFoundError {
+  constructor(id: string) {
+    super('APPOINTMENT_NOT_FOUND', 'Appointment not found', [
+      { field: 'id', issue: `no appointment ${id}` },
+    ]);
+  }
+}
