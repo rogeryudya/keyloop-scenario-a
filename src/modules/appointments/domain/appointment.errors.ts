@@ -96,3 +96,10 @@ export class NoTechnicianAvailableError extends ConflictError {
     );
   }
 }
+
+/** BR-10: the DB rejected the booking because a concurrent one took the bay or technician first. */
+export class AppointmentConflictError extends ConflictError {
+  constructor() {
+    super('APPOINTMENT_CONFLICT', 'The slot was taken by a concurrent booking; please try again');
+  }
+}

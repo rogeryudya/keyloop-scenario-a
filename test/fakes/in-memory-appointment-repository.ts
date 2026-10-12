@@ -1,5 +1,6 @@
 import { AppointmentStatus } from '../../src/modules/appointments/domain/appointment-status';
 import { Appointment } from '../../src/modules/appointments/domain/appointment.entity';
+import { AppointmentConflictError } from '../../src/modules/appointments/domain/appointment.errors';
 import { AppointmentRepository } from '../../src/modules/appointments/domain/appointment.repository';
 import { TimeSlot } from '../../src/shared/domain/time-slot';
 
@@ -9,6 +10,8 @@ const localDate = (instant: Date, timeZone: string): string =>
 /** Same semantics as PrismaAppointmentRepository, minus the DB constraints. Stores copies. */
 export class InMemoryAppointmentRepository extends AppointmentRepository {
   private readonly rows = new Map<string, Appointment>();
+  private lostRaces: ((attempted: Appointment) => Appointment | undefined)[] = [];
+  saveAttempts = 0;
 
   constructor(existing: readonly Appointment[] = []) {
     super();
@@ -19,7 +22,22 @@ export class InMemoryAppointmentRepository extends AppointmentRepository {
     return [...this.rows.values()].map((a) => Appointment.restore(a.toSnapshot()));
   }
 
+  /**
+   * The next `times` saves lose a race (BR-10): `winner` (if given) is stored as the concurrent
+   * booking that committed first, then the save rejects with AppointmentConflictError.
+   */
+  loseNextSaves(times: number, winner?: (attempted: Appointment) => Appointment): void {
+    this.lostRaces = Array.from({ length: times }, () => (a: Appointment) => winner?.(a));
+  }
+
   save(appointment: Appointment): Promise<void> {
+    this.saveAttempts += 1;
+    const lostRace = this.lostRaces.shift();
+    if (lostRace) {
+      const winner = lostRace(appointment);
+      if (winner) this.rows.set(winner.id, Appointment.restore(winner.toSnapshot()));
+      return Promise.reject(new AppointmentConflictError());
+    }
     this.rows.set(appointment.id, Appointment.restore(appointment.toSnapshot()));
     return Promise.resolve();
   }

@@ -16,6 +16,7 @@ import {
 } from '../../../shared/infrastructure/prisma/transactions.module';
 import { AppointmentStatus } from '../domain/appointment-status';
 import { Appointment } from '../domain/appointment.entity';
+import { AppointmentConflictError } from '../domain/appointment.errors';
 import { PrismaAppointmentRepository } from './prisma-appointment.repository';
 
 // Seed reference data (prisma/seed/data.json). Anong and Boonsong are qualified for OIL_CHANGE.
@@ -113,6 +114,25 @@ describe('PrismaAppointmentRepository (int)', () => {
       const loaded = await repository.findById(appointment.id);
       expect(loaded?.status).toBe(AppointmentStatus.Cancelled);
       expect(loaded?.toSnapshot().cancelledAt).toEqual(cancelledAt);
+    });
+  });
+
+  describe('save conflicts (BR-10)', () => {
+    it.each([
+      ['bay', { technician: BOONSONG }],
+      ['technician', { bay: BAY_2 }],
+    ])('maps an exclusion violation on the %s to AppointmentConflictError', async (_r, other) => {
+      await repository.save(anAppointment({ start: '2030-01-15T03:00:00.000Z' }));
+
+      await expect(
+        repository.save(anAppointment({ start: '2030-01-15T03:30:00.000Z', ...other })),
+      ).rejects.toThrow(AppointmentConflictError);
+    });
+
+    it('lets other database errors through unchanged', async () => {
+      const orphan = anAppointment({ start: '2030-01-15T03:00:00.000Z', dealership: randomUUID() });
+
+      await expect(repository.save(orphan)).rejects.not.toThrow(AppointmentConflictError);
     });
   });
 

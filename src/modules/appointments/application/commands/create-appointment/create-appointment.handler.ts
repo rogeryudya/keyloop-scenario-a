@@ -5,6 +5,7 @@ import { Clock } from '../../../../../shared/domain/clock';
 import { TimeSlot } from '../../../../../shared/domain/time-slot';
 import { Appointment } from '../../../domain/appointment.entity';
 import {
+  AppointmentConflictError,
   BookingReferenceNotFoundError,
   VehicleNotOwnedByCustomerError,
 } from '../../../domain/appointment.errors';
@@ -13,6 +14,9 @@ import { ResourceAllocator } from '../../../domain/resource-allocator';
 import { BookableResources } from '../../ports/bookable-resources';
 import { BookingParties } from '../../ports/booking-parties';
 import { CreateAppointmentCommand } from './create-appointment.command';
+
+/** Retries after a lost race; a fresh attempt may find another free bay or technician. */
+export const MAX_CONFLICT_RETRIES = 3;
 
 @CommandHandler(CreateAppointmentCommand)
 export class CreateAppointmentHandler implements ICommandHandler<CreateAppointmentCommand> {
@@ -23,9 +27,25 @@ export class CreateAppointmentHandler implements ICommandHandler<CreateAppointme
     private readonly clock: Clock,
   ) {}
 
+  /**
+   * Each attempt is its own transaction: after an exclusion violation Postgres aborts the
+   * transaction, so the retry must start a new one and re-read what the winner committed.
+   */
+  async execute(cmd: CreateAppointmentCommand): Promise<{ id: string }> {
+    for (let retry = 0; ; retry += 1) {
+      try {
+        return await this.book(cmd);
+      } catch (error) {
+        if (!(error instanceof AppointmentConflictError) || retry >= MAX_CONFLICT_RETRIES) {
+          throw error;
+        }
+      }
+    }
+  }
+
   /** One transaction: check and reserve are atomic (A-8); the DB constraint backs BR-10. */
   @Transactional()
-  async execute(cmd: CreateAppointmentCommand): Promise<{ id: string }> {
+  private async book(cmd: CreateAppointmentCommand): Promise<{ id: string }> {
     const dealership = await this.resources.findDealership(cmd.dealershipId);
     if (!dealership) throw BookingReferenceNotFoundError.dealership(cmd.dealershipId); // BR-13
     const serviceType = await this.resources.findServiceType(cmd.serviceTypeId);

@@ -9,7 +9,7 @@ import { TimeSlot } from '../../../../../shared/domain/time-slot';
 import { AppointmentStatus } from '../../../domain/appointment-status';
 import { Appointment } from '../../../domain/appointment.entity';
 import { CreateAppointmentCommand } from './create-appointment.command';
-import { CreateAppointmentHandler } from './create-appointment.handler';
+import { CreateAppointmentHandler, MAX_CONFLICT_RETRIES } from './create-appointment.handler';
 
 // Bangkok (UTC+7), open 08:00–18:00 local = 01:00Z–11:00Z.
 const BANGKOK = 'd0000000-0000-4000-8000-000000000001';
@@ -253,6 +253,55 @@ describe('CreateAppointmentHandler', () => {
       });
 
       await expect(handler.execute(command())).resolves.toHaveProperty('id');
+    });
+  });
+
+  describe('lost race (BR-10)', () => {
+    /** A concurrent booking for the same bay and technician that committed first. */
+    const winnerTakingSameResources = (attempted: Appointment): Appointment => {
+      const { serviceBayId, technicianId, slot } = attempted.toSnapshot();
+      return existing({ bay: serviceBayId, technician: technicianId, start: slot.start });
+    };
+
+    it('retries and books the next free bay and technician', async () => {
+      appointments.loseNextSaves(1, winnerTakingSameResources);
+
+      const { id } = await handler.execute(command());
+
+      expect(appointments.saveAttempts).toBe(2);
+      expect((await appointments.findById(id))?.toSnapshot()).toMatchObject({
+        serviceBayId: BAY_2,
+        technicianId: BOONSONG,
+      });
+    });
+
+    it('reports the availability error when the retry finds nothing free', async () => {
+      setup({ bays: [BAY_1] });
+      appointments.loseNextSaves(1, winnerTakingSameResources);
+
+      expect(await rejection(command())).toMatchObject({ code: 'NO_SERVICE_BAY_AVAILABLE' });
+    });
+
+    it(`gives up with APPOINTMENT_CONFLICT after ${MAX_CONFLICT_RETRIES} retries`, async () => {
+      appointments.loseNextSaves(MAX_CONFLICT_RETRIES + 1);
+
+      expect(await rejection(command())).toMatchObject({ code: 'APPOINTMENT_CONFLICT' });
+      expect(appointments.saveAttempts).toBe(MAX_CONFLICT_RETRIES + 1);
+      expect(appointments.all).toEqual([]);
+    });
+
+    it('succeeds on the last retry', async () => {
+      appointments.loseNextSaves(MAX_CONFLICT_RETRIES);
+
+      await expect(handler.execute(command())).resolves.toHaveProperty('id');
+      expect(appointments.saveAttempts).toBe(MAX_CONFLICT_RETRIES + 1);
+    });
+
+    it('does not retry other errors', async () => {
+      setup({ bays: [] });
+
+      expect(await rejection(command())).toMatchObject({ code: 'NO_SERVICE_BAY_AVAILABLE' });
+      expect(appointments.saveAttempts).toBe(0);
     });
   });
 

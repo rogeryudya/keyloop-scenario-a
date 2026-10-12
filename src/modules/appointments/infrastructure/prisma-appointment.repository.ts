@@ -2,9 +2,22 @@ import { InjectTransactionHost } from '@nestjs-cls/transactional';
 import { Injectable } from '@nestjs/common';
 import { TimeSlot } from '../../../shared/domain/time-slot';
 import { PrismaTransactionHost } from '../../../shared/infrastructure/prisma/transactions.module';
+import { Prisma } from '../../../generated/prisma/client';
 import { Appointment } from '../domain/appointment.entity';
+import { AppointmentConflictError } from '../domain/appointment.errors';
 import { AppointmentRepository } from '../domain/appointment.repository';
 import { AppointmentMapper } from './appointment.mapper';
+
+const EXCLUSION_VIOLATION = '23P01';
+
+/** With the pg driver adapter, the SQLSTATE sits in `meta.driverAdapterError.cause.originalCode`. */
+const isExclusionViolation = (error: unknown): boolean => {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  const adapterError = error.meta?.driverAdapterError;
+  if (typeof adapterError !== 'object' || adapterError === null) return false;
+  const cause = (adapterError as { cause?: { originalCode?: unknown } }).cause;
+  return cause?.originalCode === EXCLUSION_VIOLATION;
+};
 
 @Injectable()
 export class PrismaAppointmentRepository extends AppointmentRepository {
@@ -14,11 +27,17 @@ export class PrismaAppointmentRepository extends AppointmentRepository {
 
   async save(appointment: Appointment): Promise<void> {
     const data = AppointmentMapper.toPersistence(appointment);
-    await this.txHost.tx.appointment.upsert({
-      where: { id: data.id },
-      create: data,
-      update: { status: data.status, cancelledAt: data.cancelledAt },
-    });
+    try {
+      await this.txHost.tx.appointment.upsert({
+        where: { id: data.id },
+        create: data,
+        update: { status: data.status, cancelledAt: data.cancelledAt },
+      });
+    } catch (error) {
+      // BR-10: a concurrent booking committed first; the exclusion constraint is the last line of defence.
+      if (isExclusionViolation(error)) throw new AppointmentConflictError();
+      throw error;
+    }
   }
 
   async findById(id: string): Promise<Appointment | null> {
