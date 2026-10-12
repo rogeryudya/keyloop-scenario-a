@@ -39,7 +39,15 @@ provider "aws" {
 ```
 No `endpoints {}` block: the endpoint comes from `AWS_ENDPOINT_URL` (`http://localhost:4566` from the host, `http://floci:4566` inside Compose), so the same config works in both places.
 
-**State:** local backend with `path = "state/terraform.tfstate"` in `envs/local`. The `state/` folder is git-ignored and mounted as the `tf-state` Docker volume when run via Compose, so state survives container runs. `aws-dev` declares an S3 backend + DynamoDB lock but is never initialised against real AWS in this project.
+**State:** local backend with `path = "state/terraform.tfstate"` in `envs/local`. The `state/` folder is git-ignored and mounted as the `tf-state` Docker volume when run via Compose, so state survives container runs. `aws-dev` declares an S3 backend with S3-native locking (`use_lockfile`; DynamoDB lock tables are deprecated) but is never initialised against real AWS in this project.
+
+## `envs/aws-dev` (real-AWS shape)
+Same `database` module, no floci flags, credentials from the standard AWS chain. It takes an existing DB subnet group
+and security groups as variables (`terraform.tfvars.example`); the network module that would create them is M7.
+`secret_hosts` stays empty, so the app's secret is `keyloop-dev/db` holding the real instance address.
+Validate without AWS access:
+`docker compose run --rm --no-deps -e TF_DATA_DIR=/tmp/tf -w /infra/envs/aws-dev --entrypoint sh terraform -c 'terraform init -backend=false && terraform validate'`
+(a separate `TF_DATA_DIR`, so it doesn't share the `tf-data` volume with `envs/local`).
 
 ## `database` module contract
 Inputs: `name`, `engine_version` (default `17`), `instance_class`, `allocated_storage`, `db_name`, `username`, `secret_hosts` (map of secret-suffix → host override; local only), `skip_final_snapshot`.

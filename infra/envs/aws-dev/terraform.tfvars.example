@@ -1,0 +1,3 @@
+# Copy to terraform.tfvars (git-ignored) for a real plan. Placeholder ids.
+db_subnet_group_name  = "keyloop-dev-private"
+db_security_group_ids = ["sg-0123456789abcdef0"]

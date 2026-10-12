@@ -42,6 +42,18 @@ variable "secret_hosts" {
   default     = {}
 }
 
+variable "db_subnet_group_name" {
+  description = "DB subnet group (private subnets). Null on floci, which has no VPC."
+  type        = string
+  default     = null
+}
+
+variable "vpc_security_group_ids" {
+  description = "Security groups for the instance. Empty on floci."
+  type        = list(string)
+  default     = []
+}
+
 variable "skip_final_snapshot" {
   description = "Skip the final snapshot on destroy. True for throwaway environments."
   type        = bool

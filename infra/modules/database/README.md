@@ -12,6 +12,8 @@ Postgres on RDS plus its credentials in Secrets Manager, in the RDS secret forma
 | `allocated_storage` | `20` | GiB |
 | `username` | `keyloop` | Master user |
 | `secret_hosts` | `{}` | `suffix => host`, one secret `<name>/<suffix>/db` each. Empty: one secret `<name>/db` with the instance address |
+| `db_subnet_group_name` | `null` | Private subnet group (real AWS) |
+| `vpc_security_group_ids` | `[]` | Security groups (real AWS) |
 | `skip_final_snapshot` | `false` | `true` for throwaway environments |
 
 Outputs: `endpoint`, `port`, `secret_arns` (name => ARN).
