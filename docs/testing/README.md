@@ -39,7 +39,7 @@ Tests never depend on a developer's running Compose stack or on manual bootstrap
 8. Arrange/Act/Assert layout, with one behaviour per test (multiple asserts about that behaviour are fine).
 
 ## Coverage
-- Target: domain + application ≥ 90% lines/branches. Overall is reported but not gated.
+- Gate: every `domain/` and `application/` folder ≥ 90% statements, branches, functions and lines, aggregated per folder (`coverageThreshold` in `jest.config.js`). `pnpm test:cov` fails below it, and CI runs it. Overall is reported but not gated. Add a new module's `domain/`/`application/` folder to the list once it has code.
 - Coverage is a signal for missing tests, not a goal. An uncovered branch in domain code means an untested rule.
 
 ## Test data

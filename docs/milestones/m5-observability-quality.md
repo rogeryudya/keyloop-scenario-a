@@ -9,7 +9,7 @@
 - [x] Structured logging (pino) with request id + trace id correlation
 - [x] Business metrics: `appointments_created_total`, `appointment_rejections_total{reason}`, `appointment_conflict_retries_total`
 - [ ] Optional Datadog Compose profile documented and verified with a trial key
-- [ ] Coverage review: domain + application ≥ 90%; add tests for any uncovered rule branch
+- [x] Coverage review: domain + application ≥ 90%; add tests for any uncovered rule branch
 - [ ] Light load check: script firing ~200 concurrent booking requests; confirm no double-booking and record latency in design notes
 
 ## Acceptance criteria
@@ -26,3 +26,4 @@
 - Gotcha: pino-http puts the request id inside `req`, so a custom `req` serializer drops it. `request_id` is bound with `customProps` instead, which also tags any log written during the request.
 - Task 3: verified on the Compose stack. One 409, one 201 and one 404 booking give `appointments_created_total 1`, `appointment_rejections_total{reason="NO_SERVICE_BAY_AVAILABLE"} 1` and `{reason="VEHICLE_NOT_FOUND"} 1` in Prometheus; `http_server_request_duration_seconds` comes from the HTTP instrumentation. The handler reports through a `BookingMetrics` port, so the application layer has no OTel import. A 409 now shows as a trace, a log line with the same trace id, and a metric increment, which meets the first acceptance criterion. New dev dependency: `@opentelemetry/sdk-metrics` (in-memory meter for the adapter test).
 - Task 4 (open, needs the repo owner): the `datadog` Compose profile (`datadog/agent:7.83.3`, OTLP ingest for traces, metrics and logs) and its usage are in `docs/local-dev/observability.md`. Checked with a dummy key: compose config is valid for every profile combination, the agent's OTLP receiver runs, the app exports to it with `OTEL_EXPORTER_OTLP_ENDPOINT_DOCKER=http://datadog-agent:4318`, and the agent forwards the logs (403 with the dummy key). Still pending: a run with a real trial `DD_API_KEY` to see the data in Datadog. `DD_API_KEY` uses `:-`, not `:?`, because `:?` fails every `docker compose` command when the key is unset, even without the profile.
+- Task 5: domain + application coverage was already above 90% in every folder (lowest: `shared/application` at 94.7% branches). The remaining uncovered branches are defensive guards that real inputs can't reach (equal ids in a comparator, a `noUncheckedIndexedAccess` guard, an `Intl` part fallback), except the availability rethrow, which now has a test (an allocator bug isn't read as "slot not free"). The gate is `coverageThreshold` per folder in `jest.config.js`, enforced by `pnpm test:cov` in the CI `unit` job; checked that it fails (exit 1) when a threshold isn't met.
