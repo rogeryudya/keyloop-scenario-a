@@ -12,7 +12,7 @@
 - [x] Race safety: Prisma adapter maps exclusion violation (SQLSTATE `23P01`) to `AppointmentConflictError`; handler retries the whole command up to 3 times (another free bay/technician may exist), then returns 409 `APPOINTMENT_CONFLICT`
 - [x] `GetAppointmentQuery` + handler → `AppointmentView` (with dealership, bay, technician, service type, vehicle, customer ids and names)
 - [x] `POST /v1/appointments` → 201 + `Location`; `GET /v1/appointments/:id`
-- [ ] Handler unit tests with in-memory fakes + `FixedClock` for each error path
+- [x] Handler unit tests with in-memory fakes + `FixedClock` for each error path
 - [ ] Integration: Prisma repository contract tests; **concurrency test**: 10 parallel requests for the same slot at a dealership with 1 bay → exactly 1 succeeds, 9 get 409; with 2 bays and 2 qualified technicians → exactly 2 succeed
 - [ ] e2e: happy path and one test per error code (400 validation, 404s, 422 BR-3/4/5/6, 409 BR-7/8)
 - [ ] `docs/api.md`: request/response examples and the error code table
@@ -26,3 +26,4 @@
 - `ResourceAllocator` takes `technicianDayLoad` (BR-11) as a separate map so it maps 1:1 to the planned `AppointmentRepository.countForTechniciansOnDay`. It takes `ExistingBooking` (a `Pick` of `AppointmentProps`), so the handler can pass `appointment.toSnapshot()`. It ignores other-dealership, unqualified and cancelled inputs itself, so a loose query in the handler cannot cause a double booking.
 - Race retry: "up to 3 times" means 1 attempt + 3 retries (`MAX_CONFLICT_RETRIES`). Each attempt is its own `@Transactional()` call: Postgres aborts a transaction after `23P01`, so retrying inside it can't work. Don't call `CreateAppointmentHandler` from inside an outer transaction, because the attempts would join it.
 - With the pg driver adapter, Prisma reports the exclusion violation as `PrismaClientKnownRequestError` with code `P2039`. The SQLSTATE is in `meta.driverAdapterError.cause.originalCode`, which is what the adapter checks.
+- Handler unit tests were written with each handler (tasks 4–6), using in-memory fakes in `test/fakes/` and `FixedClock`. Coverage for `appointments/application` is 100% lines and branches.
