@@ -151,6 +151,16 @@ ALTER TABLE appointments
 
 **Idempotency (FR-11, Could, M3):** if built, a separate table `idempotency_keys (key text PK, request_hash text, appointment_id uuid FK, created_at)` rather than columns on `appointments`.
 
+## Raw SQL constraint names
+Defined in `prisma/migrations/*_m1_constraints/migration.sql` (Prisma can't express them). Map violations by these names.
+
+| Name | Kind | SQLSTATE |
+|---|---|---|
+| `appointments_no_bay_overlap`, `appointments_no_technician_overlap` | exclusion (BR-10) | `23P01` |
+| `appointments_confirmed_dealership_id_start_at_idx` | partial index `WHERE status = 'CONFIRMED'` | — |
+| `customers_email_lower_key` | unique index on `lower(email)` | `23505` |
+| `dealerships_opening_hours_check`, `service_types_code_check`, `service_types_duration_minutes_check`, `vehicles_vin_check`, `vehicles_year_check`, `appointments_time_range_check`, `appointments_cancelled_at_check` | check | `23514` |
+
 ## What the database guarantees vs the domain
 | Rule | Domain | Database |
 |---|---|---|
