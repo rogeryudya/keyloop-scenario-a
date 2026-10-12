@@ -17,6 +17,8 @@ Unversioned: `/health`, `/docs`.
 | GET | `/v1/dealerships` | List dealerships (cursor pagination) | FR-10 | done |
 | GET | `/v1/dealerships/:id` | One dealership + the service types it supports | FR-10 | done |
 | GET | `/v1/service-types` | List service types with durations (cursor pagination) | FR-10 | done |
+| POST | `/v1/appointments` | Book an appointment; bay and technician are allocated (201 + `Location`) | FR-1…FR-5 | done |
+| GET | `/v1/appointments/:id` | One appointment with linked dealership, bay, technician, service type, customer, vehicle | FR-6 | done |
 
 ### Module error codes
 | Status | `code` | Endpoint | When |
