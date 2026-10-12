@@ -1,5 +1,7 @@
-// Prisma schema. Target design: docs/data-dictionary.md (models arrive in M1).
-// Prisma can't express everything (exclusion constraints, ranges); see raw SQL in migrations.
+// Prisma schema. Target design: docs/data-dictionary.md.
+// Prisma can't express everything: exclusion constraints, CHECK constraints, the partial index on
+// appointments and the lower(email) unique index live as raw SQL in prisma/migrations. This file is
+// therefore NOT the whole truth about the database; the data dictionary is.
 
 generator client {
   provider     = "prisma-client"
@@ -9,4 +11,159 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum AppointmentStatus {
+  CONFIRMED
+  CANCELLED
+
+  @@map("appointment_status")
+}
+
+model Dealership {
+  id        String   @id @db.Uuid
+  name      String   @unique
+  timeZone  String   @map("time_zone")
+  opensAt   DateTime @map("opens_at") @db.Time(0)
+  closesAt  DateTime @map("closes_at") @db.Time(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  serviceBays  ServiceBay[]
+  technicians  Technician[]
+  appointments Appointment[]
+
+  @@map("dealerships")
+}
+
+model ServiceBay {
+  id           String   @id @db.Uuid
+  dealershipId String   @map("dealership_id") @db.Uuid
+  name         String
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  dealership   Dealership    @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  appointments Appointment[]
+
+  @@unique([dealershipId, name])
+  @@unique([id, dealershipId]) // target of the composite FK from appointments
+  @@index([dealershipId])
+  @@map("service_bays")
+}
+
+model Technician {
+  id           String   @id @db.Uuid
+  dealershipId String   @map("dealership_id") @db.Uuid
+  name         String
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  dealership     Dealership                @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  qualifications TechnicianQualification[]
+  appointments   Appointment[]
+
+  @@unique([id, dealershipId]) // target of the composite FK from appointments
+  @@index([dealershipId])
+  @@map("technicians")
+}
+
+/// CHECK constraints on code and duration_minutes: raw SQL in the migration.
+model ServiceType {
+  id              String   @id @db.Uuid
+  code            String   @unique
+  name            String
+  durationMinutes Int      @map("duration_minutes")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  qualifications TechnicianQualification[]
+  appointments   Appointment[]
+
+  @@map("service_types")
+}
+
+model TechnicianQualification {
+  technicianId  String   @map("technician_id") @db.Uuid
+  serviceTypeId String   @map("service_type_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  technician   Technician    @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  serviceType  ServiceType   @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  appointments Appointment[]
+
+  @@id([technicianId, serviceTypeId])
+  @@index([serviceTypeId])
+  @@map("technician_qualifications")
+}
+
+/// Unique index on lower(email): raw SQL in the migration.
+model Customer {
+  id        String   @id @db.Uuid
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  email     String
+  phone     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  vehicles     Vehicle[]
+  appointments Appointment[]
+
+  @@map("customers")
+}
+
+/// CHECK constraints on vin and year: raw SQL in the migration.
+model Vehicle {
+  id           String   @id @db.Uuid
+  customerId   String   @map("customer_id") @db.Uuid
+  vin          String   @unique @db.Char(17)
+  registration String
+  make         String
+  model        String
+  year         Int      @db.SmallInt
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  appointments Appointment[]
+
+  @@unique([id, customerId]) // target of the ownership FK from appointments (BR-5)
+  @@index([customerId])
+  @@map("vehicles")
+}
+
+/// Exclusion constraints (no double-booking, BR-10), CHECK constraints and the partial index
+/// (dealership_id, start_at) WHERE status = 'CONFIRMED': raw SQL in the migration.
+model Appointment {
+  id            String            @id @db.Uuid
+  dealershipId  String            @map("dealership_id") @db.Uuid
+  serviceBayId  String            @map("service_bay_id") @db.Uuid
+  technicianId  String            @map("technician_id") @db.Uuid
+  serviceTypeId String            @map("service_type_id") @db.Uuid
+  customerId    String            @map("customer_id") @db.Uuid
+  vehicleId     String            @map("vehicle_id") @db.Uuid
+  startAt       DateTime          @map("start_at") @db.Timestamptz(6)
+  endAt         DateTime          @map("end_at") @db.Timestamptz(6)
+  status        AppointmentStatus @default(CONFIRMED)
+  cancelledAt   DateTime?         @map("cancelled_at") @db.Timestamptz(6)
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  dealership    Dealership              @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  // Composite FKs: bay and technician belong to the same dealership.
+  serviceBay    ServiceBay              @relation(fields: [serviceBayId, dealershipId], references: [id, dealershipId], onDelete: Restrict)
+  technician    Technician              @relation(fields: [technicianId, dealershipId], references: [id, dealershipId], onDelete: Restrict)
+  serviceType   ServiceType             @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  // Composite FK: the technician is qualified for the service type (BR-6/8).
+  qualification TechnicianQualification @relation(fields: [technicianId, serviceTypeId], references: [technicianId, serviceTypeId], onDelete: Restrict)
+  customer      Customer                @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  // Composite FK: the vehicle is owned by the customer (BR-5).
+  vehicle       Vehicle                 @relation(fields: [vehicleId, customerId], references: [id, customerId], onDelete: Restrict)
+
+  @@index([dealershipId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([customerId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([vehicleId])
+  @@index([serviceTypeId])
+  @@map("appointments")
 }

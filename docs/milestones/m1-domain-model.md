@@ -8,7 +8,7 @@
 - [x] Value object `TimeSlot` (`shared/domain`): half-open `[start, end)`, `overlaps()`, `fromStartAndDuration()`, rejects end ≤ start. Unit tests incl. back-to-back, enclosing, partial, identical intervals
 - [x] Value object `OpeningHours`: daily open/close in a time zone, `contains(slot)`. Unit tests incl. a slot ending exactly at closing time and a DST day in a DST zone (e.g. `Europe/London`); the seed zones, Bangkok and Vietnam, have no DST, but the code must not assume that
 - [x] Entity `Appointment` (`create` / `restore` / `cancel`), status `CONFIRMED | CANCELLED`, invariants per BR-1, BR-3, BR-12. Unit tests
-- [ ] Prisma schema exactly per `docs/data-dictionary.md` (tables, types, checks, composite FKs, indexes)
+- [x] Prisma schema exactly per `docs/data-dictionary.md` (tables, types, checks, composite FKs, indexes)
 - [ ] Migration raw SQL for what Prisma can't express: `btree_gist` + the two **exclusion constraints**, partial index, `lower(email)` unique index, check constraints (see `docs/data-dictionary.md`)
 - [ ] ADR 0005: data model and how double-booking is prevented (exclusion constraint vs locking vs serializable)
 - [ ] Seed script `pnpm db:seed` loading `prisma/seed/data.json` per the rules in `prisma/seed/README.md` (idempotent, demo appointments relative to "tomorrow" in dealership time zone, validated before insert)
