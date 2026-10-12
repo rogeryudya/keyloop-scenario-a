@@ -56,7 +56,7 @@ export class InMemoryAppointmentRepository extends AppointmentRepository {
             a.status === AppointmentStatus.Confirmed &&
             a.slot.overlaps(slot),
         )
-        .sort((a, b) => a.slot.start.getTime() - b.slot.start.getTime()),
+        .sort((a, b) => a.slot.start.getTime() - b.slot.start.getTime() || (a.id < b.id ? -1 : 1)),
     );
   }
 
