@@ -1,6 +1,6 @@
 # M0 — Foundation
 
-**Status:** `in-progress`
+**Status:** `done`
 **Goal:** a production-shaped but empty service: runs, lints, tests, talks to Postgres, with the architecture skeleton in place. No AWS emulation yet (that's M4).
 **Requirements:** NFR-2, NFR-3, NFR-4
 
@@ -19,7 +19,7 @@
 - [x] `GET /health` (app + DB check, version-neutral)
 - [x] Test infra: Jest projects unit / int / e2e; Testcontainers Postgres global setup; `resetDb()`; `FixedClock`; e2e app factory using `configureApp()`; scripts `test`, `test:int`, `test:e2e`, `test:cov`, `test:all`
 - [x] GitHub repo + basic `.github/workflows/ci.yml`: lint → unit / integration / e2e (terraform, smoke, Bugbot come in M4)
-- [ ] Update `CLAUDE.md` commands to match the real scripts
+- [x] Update `CLAUDE.md` commands to match the real scripts
 
 ## Acceptance criteria
 - `docker compose up -d && pnpm db:migrate && pnpm start:dev` → `GET /health` returns 200
@@ -76,4 +76,4 @@
   - **Tests:** `test/lint/boundaries.spec.ts` covers the 32 boundary cases (resolves the earlier TODO; a mutation check confirms it fails if the rules break). `prisma.int-spec.ts` covers connect, commit, rollback and fail-fast on a bad URL (resolves the earlier TODO).
 - **Podman gotcha:** this machine's "Docker" is Podman (Windows). Testcontainers' default Postgres wait strategy also probes the internal port via `docker exec`, which **hangs forever** on Podman. The global setup waits on `Wait.forHealthCheck()` (pg_isready) only, which starts in about 4 s. Each `test:int`/`test:e2e` run takes about 15 s.
 - Coverage: `pnpm test:cov` (unit). The ≥90 % domain+application gate is added once domain code exists (M1/M5).
-- CI: `.github/workflows/ci.yml` runs `lint` (format:check, lint, typecheck, prisma validate), then `unit` (test:cov + coverage artifact), `integration` and `e2e` in parallel. Setup lives in the composite action `.github/actions/setup` (pnpm from `packageManager`, Node from `.nvmrc`). Actions are pinned to commit SHAs; Dependabot updates actions and npm weekly. Repo: `origin` = github.com/rogeryudya/keyloop-scenario-a. **Not yet verified on GitHub: needs a push.**
+- CI: `.github/workflows/ci.yml` runs `lint` (format:check, lint, typecheck, prisma validate, build), then `unit` (test:cov + coverage artifact), `integration` and `e2e` in parallel. Setup lives in the composite action `.github/actions/setup` (pnpm from `packageManager`, Node from `.nvmrc`). Actions are pinned to commit SHAs; Dependabot updates actions and npm weekly. Repo: `origin` = github.com/rogeryudya/keyloop-scenario-a. **Not yet verified on GitHub: needs a push.**
