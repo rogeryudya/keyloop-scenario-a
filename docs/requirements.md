@@ -14,20 +14,21 @@ Source of truth for *what* we build. AI assistants must not add features that ar
 
 ## 2. Functional requirements
 Priority: **Must** = in the brief; **Should** = small, directly supports the brief; **Could** = only if time allows.
+Status as of M6: every requirement is **done**, with tests; none is deferred. How to try each one: README › Try it.
 
-| ID | Requirement | Source | Priority | Milestone |
-|---|---|---|---|---|
-| FR-1 | A user can request an appointment for a **vehicle**, **service type** and **dealership** at a **desired start time** | Brief 1 | Must | M2 |
-| FR-2 | Before confirming, the system checks that **a ServiceBay** at that dealership **and a Technician qualified for the service type** are both free for the **entire service duration** `[start, start + duration)` | Brief 2 | Must | M2 |
-| FR-3 | On success, a persistent **Appointment** is created linking customer, vehicle, technician and service bay (plus dealership, service type, start, end, status) | Brief 3 | Must | M2 |
-| FR-4 | When the request can't be satisfied, it is rejected with a specific reason: no free bay, no free qualified technician, service not supported, outside opening hours, invalid request | Brief 2 (derived) | Must | M2 |
-| FR-5 | Concurrent requests can never double-book the same bay or technician for overlapping times | Brief 2 "real-time" (derived) | Must | M2 |
-| FR-6 | An appointment can be retrieved by id | Brief 3 (derived) | Must | M2 |
-| FR-7 | A user can query available start times for a dealership + service type on a given date | Brief 2 (derived) | Should | M3 |
-| FR-8 | An appointment can be cancelled, which frees its bay and technician | Derived | Should | M3 |
-| FR-9 | Appointments can be listed per dealership or per customer (cursor pagination) | Derived | Could | M3 |
-| FR-10 | Reference data can be read: dealerships, service types (so a client can build a request) | Derived | Should | M1 |
-| FR-11 | Repeating a create request with the same `Idempotency-Key` doesn't create a second appointment | Derived (robustness) | Could | M3 |
+| ID | Requirement | Source | Priority | Milestone | Status |
+|---|---|---|---|---|---|
+| FR-1 | A user can request an appointment for a **vehicle**, **service type** and **dealership** at a **desired start time** | Brief 1 | Must | M2 | done |
+| FR-2 | Before confirming, the system checks that **a ServiceBay** at that dealership **and a Technician qualified for the service type** are both free for the **entire service duration** `[start, start + duration)` | Brief 2 | Must | M2 | done |
+| FR-3 | On success, a persistent **Appointment** is created linking customer, vehicle, technician and service bay (plus dealership, service type, start, end, status) | Brief 3 | Must | M2 | done |
+| FR-4 | When the request can't be satisfied, it is rejected with a specific reason: no free bay, no free qualified technician, service not supported, outside opening hours, invalid request | Brief 2 (derived) | Must | M2 | done |
+| FR-5 | Concurrent requests can never double-book the same bay or technician for overlapping times | Brief 2 "real-time" (derived) | Must | M2 | done |
+| FR-6 | An appointment can be retrieved by id | Brief 3 (derived) | Must | M2 | done |
+| FR-7 | A user can query available start times for a dealership + service type on a given date | Brief 2 (derived) | Should | M3 | done |
+| FR-8 | An appointment can be cancelled, which frees its bay and technician | Derived | Should | M3 | done |
+| FR-9 | Appointments can be listed per dealership or per customer (cursor pagination) | Derived | Could | M3 | done |
+| FR-10 | Reference data can be read: dealerships, service types (so a client can build a request) | Derived | Should | M1 | done |
+| FR-11 | Repeating a create request with the same `Idempotency-Key` doesn't create a second appointment | Derived (robustness) | Could | M3 | done |
 
 ## 3. Business rules
 These are what the domain layer enforces and what M2/M3 unit tests must cover.
@@ -49,14 +50,14 @@ These are what the domain layer enforces and what M2/M3 unit tests must cover.
 | BR-13 | Referenced dealership, service type, customer and vehicle must exist | `*_NOT_FOUND` (404) |
 
 ## 4. Non-functional requirements
-| ID | Requirement | Notes |
-|---|---|---|
-| NFR-1 | Runs locally with one documented command sequence (Docker Compose: floci RDS + Secrets Manager) | Reviewer experience |
-| NFR-2 | Input validated; consistent error responses | See conventions.md |
-| NFR-3 | Automated tests for business rules and main API flows | Including a concurrency test for FR-5 |
-| NFR-4 | API documented via OpenAPI/Swagger | |
-| NFR-5 | Observable: traces, structured logs and metrics via OpenTelemetry | Local: Grafana LGTM; prod-ready for Datadog |
-| NFR-6 | Booking stays correct under concurrent requests (no double-booking) | Backs FR-5 / BR-10 |
+| ID | Requirement | Notes | Status |
+|---|---|---|---|
+| NFR-1 | Runs locally with one documented command sequence (Docker Compose: floci RDS + Secrets Manager) | Reviewer experience | done (M4): `docker compose --profile app up --build` |
+| NFR-2 | Input validated; consistent error responses | See conventions.md | done (M2): DTO validation, one error format |
+| NFR-3 | Automated tests for business rules and main API flows | Including a concurrency test for FR-5 | done (M2–M5): unit, integration, e2e; 90% gate in CI |
+| NFR-4 | API documented via OpenAPI/Swagger | | done (M2): Swagger at `/docs` |
+| NFR-5 | Observable: traces, structured logs and metrics via OpenTelemetry | Local: Grafana LGTM; prod-ready for Datadog | done (M5) locally with Grafana; the Datadog path is configured but not yet verified with a real key |
+| NFR-6 | Booking stays correct under concurrent requests (no double-booking) | Backs FR-5 / BR-10 | done (M2, hardened in M5): exclusion constraints + retry; load check in design-notes.md |
 
 ## 5. Domain glossary
 Use these exact terms in code (class names, table names, endpoints).
@@ -97,6 +98,7 @@ Made where the brief is silent. Format: `A-n: assumption — reason`.
 
 ## 7. Open questions
 For the interviewer. Don't block on them; the matching assumption applies until answered.
+All six are still open as of M6. design-notes.md › What I'd do with more time sketches how Q-2, Q-4, Q-5 and Q-6 would be built.
 
 - Q-1: Is there more to the brief (further pages, deliverables, time box, presentation format)?
 - Q-2: Should the customer be able to choose or prefer a technician? (A-4)

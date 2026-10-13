@@ -7,7 +7,7 @@
 ## Tasks
 - [x] README: overview, one-command run, how to try it (Swagger + `test/http/*.http` built from the scenarios in `prisma/seed/README.md`), how to run tests
 - [x] `docs/design-notes.md`: architecture summary, how availability and allocation work, how double-booking is prevented, key trade-offs, assumptions, what I'd do with more time
-- [ ] Final pass on `requirements.md`: assumptions and open questions current; every Must/Should FR marked done or explicitly deferred
+- [x] Final pass on `requirements.md`: assumptions and open questions current; every Must/Should FR marked done or explicitly deferred
 - [ ] Verify the full-stack Compose run on a clean machine (Windows + macOS/Linux if possible)
 
 ## Acceptance criteria
@@ -16,3 +16,4 @@
 ## Notes
 -
 - Task 2: `docs/design-notes.md` now covers the architecture, the booking check order and allocation, availability, the three layers against double-booking (incl. the P2034 deadlock retry from M5), time zones, trade-offs, assumptions, testing, the M5 load check and a prioritised "more time" list. Every factual claim was checked against code and migrations.
+- Task 3: `requirements.md` has a Status column for every FR and NFR. All FR-1–FR-11 are done with tests; none is deferred. NFR-5 is done locally, with the Datadog trial-key check still open (M5). Assumptions A-1–A-16 were reviewed and are unchanged; later M4/M5 choices are operational and live in ADRs and docs. Q-1–Q-6 are still open.
