@@ -99,6 +99,7 @@ Its entrypoint is `infra/scripts/terraform.sh`, which runs `init` and then the r
 | `pnpm infra:up` | `docker compose run --rm terraform up` → `init` + `apply -auto-approve` |
 | `pnpm infra:plan` | same, `plan` only |
 | `pnpm infra:down` | `destroy -auto-approve` |
+| `pnpm infra:ecs` / `infra:ecs:down` | M7: build, push and deploy the API to ECS on floci / destroy it (`envs/local-ecs`, `ecs-*` actions; see below) |
 
 - Providers are downloaded into the `tf-data` volume (`TF_DATA_DIR`), not into the bind-mounted source tree. State lives in the `tf-state` volume.
 - `.terraform.lock.hcl` is committed with hashes for linux/darwin (amd64 + arm64) and windows_amd64. To refresh it:
@@ -109,13 +110,33 @@ Its entrypoint is `infra/scripts/terraform.sh`, which runs `init` and then the r
 In full-stack Compose mode, the `bootstrap` service is this same Terraform container (see `local-dev/docker-compose.md`).
 
 ## M7: ECS on floci (stretch)
-Flow, scripted as `pnpm infra:ecs`:
-1. `terraform apply` the `ecr` module → repository URI.
-2. `docker build --target runtime` → tag → `docker login` + `push` to floci ECR (`<account>.dkr.ecr.us-east-1.localhost:4566/keyloop-api`).
-3. `terraform apply` `network` + `ecs-service` with the image tag. The task definition gets `DB_SECRET_ID` as an env var and the secret ARN via the execution role, the same as real AWS.
-4. floci runs the task as a real container; the API is reachable via the ALB (or published awsvpc port).
+`pnpm infra:ecs` runs the API the way it would run in AWS: an image in ECR, an ECS Fargate service in private
+subnets, behind an ALB. It needs only Docker or Podman (on Podman, prefix `DOCKER_BUILDKIT=0` as for Compose).
+Script: `scripts/infra/ecs.ts`; Terraform root: `infra/envs/local-ecs` (own state volume `tf-ecs-state`).
 
-What this proves: the image, task definition, IAM permissions for the secret, and env wiring are production-shaped. What it doesn't: real networking, scaling or IAM enforcement. Say so in the design notes.
+1. **Data layer:** `docker compose up -d floci otel-lgtm`, then the `migrate` job. Through its dependencies this
+   applies `envs/local` (RDS + DB secrets), then runs migrations and the seed. Idempotent.
+2. **ECR:** `terraform apply -target=module.ecr`. The repository must exist before the push.
+3. **Build:** `docker build --target runtime`, tagged `<git short sha>[-dirty]-<UTC timestamp>`, so every run is a new
+   task definition revision. The build is tagged both `keyloop-api:<tag>` and with its full ECR name, because floci
+   starts tasks through this engine and would otherwise try to pull over HTTPS from its plain-HTTP registry.
+4. **Push:** `docker save`, then [crane](https://github.com/google/go-containerregistry/tree/main/cmd/crane) in a
+   container on the Compose network pushes the tarball to floci ECR with `--insecure`. Same on every engine, and no
+   daemon `insecure-registries` setting.
+5. **Deploy:** `terraform apply` of `network` + `ecr` + `ecs-service` with `TF_VAR_image_tag`.
+6. **Wait:** polls `http://localhost:8080/health` through the ALB until `db` is `up` (3 min timeout), then prints the
+   URL, image, cluster/service and log group.
+
+`pnpm infra:ecs:down` destroys the ECS stack (`envs/local-ecs`) and leaves the data layer.
+
+| Local choice | Why |
+|---|---|
+| ALB listener on 8080, published on the `floci` service | floci opens listener ports inside its own container and can't bind below 1024. `aws-dev` uses 80 |
+| Separate root and state (`envs/local-ecs`) | The ECS stack can be created and destroyed without touching the data layer. Its provider looks up the account id, which security group rules need for a clean plan, and switching that on in `envs/local` would break existing states |
+| `AWS_ENDPOINT_URL` and dummy keys in the task environment | IAM isn't enforced on floci, so the task can't get credentials from its role. `aws-dev` passes none of these |
+| `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-lgtm:4318` | Tasks join the Compose network, so their traces, logs and metrics appear in the same Grafana |
+
+What this proves and what it can't: [design-notes.md](design-notes.md) › Running on ECS (M7).
 
 ## Rules
 - Pin Terraform and provider versions (`required_version`, `required_providers`). Commit `.terraform.lock.hcl`.

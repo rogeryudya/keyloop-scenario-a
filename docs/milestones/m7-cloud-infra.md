@@ -8,7 +8,7 @@
 - [x] `infra/modules/ecr`: repository + lifecycle policy
 - [x] `infra/modules/network`: VPC, subnets, security groups
 - [x] `infra/modules/ecs-service`: cluster, task definition (`DB_SECRET_ID`, OTel env), service, ALB, IAM task/execution roles (secret read only), log group
-- [ ] `pnpm infra:ecs`: build `runtime` image → push to floci ECR → apply → wait for healthy
+- [x] `pnpm infra:ecs`: build `runtime` image → push to floci ECR → apply → wait for healthy
 - [ ] `envs/aws-dev` wires all modules; passes `terraform validate` (never applied)
 - [ ] Design notes: what floci proves vs what it can't (IAM enforcement, real networking, scaling)
 
@@ -64,3 +64,20 @@
   - Logs reached CloudWatch, and traces reached Tempo under the service name.
   - Redeploying a new image tag created task definition revision 2 and rolled the service (`COMPLETED`). floci stops the old task first, so there was about 10 s of 503; AWS keeps the old task until the new one is healthy.
   - Destroy removed all 36 resources (34 + the 2 ECR ones). fmt and tflint are clean.
+- Task 4: `pnpm infra:ecs` / `infra:ecs:down` (`scripts/infra/ecs.ts`, root `infra/envs/local-ecs` with its own state).
+  - **Acceptance met from a clean state:** after `infra:ecs:down` (36 resources destroyed in 12 s) and
+    `docker compose --profile app --profile tools down -v`, one run took 330 s on Podman/Windows (data layer, ECR, build,
+    push, 34 resources, healthy). Through the ALB, `/health` returned `db: up`, a booking returned 201, and `/docs`
+    returned 200. A re-plan against the deployed stack shows no changes.
+  - **Redeploy:** a second run rolled the service to task definition revision 2 (`COMPLETED`).
+  - **Gotcha found on the first run:** floci starts tasks through the host engine. Without a local image under the ECR
+    name, Podman tried to pull over HTTPS from floci's plain-HTTP registry, and the task failed to start (`FAILED`
+    rollout, ALB `No targets available`). The build is now tagged with the ECR name too. The spike hadn't shown this,
+    because `podman push` had left that tag behind.
+  - **Push:** crane (`docker save`, then `crane push --insecure` from a container on the Compose network, with
+    `--add-host` mapping the ECR hostname to floci). It works the same on every engine, so the untested Docker Engine
+    push from the spike is no longer needed. Pushing via `localhost:4566/<repo>` doesn't work: floci routes the
+    registry by hostname (404).
+  - `.terraform.lock.hcl` for `local-ecs` carries hashes for all five platforms (verified with `providers lock`).
+  - In Git Bash, `docker compose run -w /infra/...` needs `MSYS_NO_PATHCONV=1`, or the path is rewritten into a
+    Windows path.

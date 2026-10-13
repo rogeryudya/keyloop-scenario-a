@@ -21,6 +21,8 @@
     "infra:up": "docker compose run --rm terraform up",
     "infra:plan": "docker compose run --rm terraform plan",
     "infra:down": "docker compose run --rm terraform down",
+    "infra:ecs": "tsx scripts/infra/ecs.ts up",
+    "infra:ecs:down": "tsx scripts/infra/ecs.ts down",
     "db:generate": "prisma generate",
     "db:migrate": "tsx scripts/local/with-db-url.ts migrate deploy",
     "db:migrate:dev": "tsx scripts/local/with-db-url.ts migrate dev",
