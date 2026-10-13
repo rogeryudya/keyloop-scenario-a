@@ -1,0 +1,1827 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <style>
+      :root {
+        color-scheme: light;
+        box-sizing: border-box;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      html {
+        scroll-padding-top: env(safe-area-inset-top, 0px);
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        font:
+          14px -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: #fff;
+        color: #000;
+      }
+      img {
+        max-width: 100%;
+      }
+      [hidden]:not([hidden='until-found' i]) {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <title>Keyloop Scheduler Blueprints</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    />
+    <style>
+      /* Layout: one reading column; a tab bar switches between three blueprint sheets, each a figure plus its detail table. */
+      :root {
+        --bg: #f5f6f7;
+        --surface: #ffffff;
+        --fg: #172029;
+        --muted: #5d6976;
+        --line: #d6dce2;
+        --accent: #0f6f6a;
+        --accent-soft: #e0f0ee;
+        --err: #b4232f;
+        --err-soft: #fbe7e8;
+        --warn: #8a5a00;
+        --warn-soft: #fbefd6;
+        --ok: #1d7a3a;
+        --ok-soft: #e1f3e6;
+        --font-ui: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+        --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --bg: #10161c;
+          --surface: #172029;
+          --fg: #e3e8ed;
+          --muted: #98a4b0;
+          --line: #2b3742;
+          --accent: #5cc8bd;
+          --accent-soft: #163330;
+          --err: #ff8a92;
+          --err-soft: #3a1c20;
+          --warn: #f2bd5c;
+          --warn-soft: #3a2c12;
+          --ok: #74d394;
+          --ok-soft: #173322;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme='dark'] {
+        --bg: #10161c;
+        --surface: #172029;
+        --fg: #e3e8ed;
+        --muted: #98a4b0;
+        --line: #2b3742;
+        --accent: #5cc8bd;
+        --accent-soft: #163330;
+        --err: #ff8a92;
+        --err-soft: #3a1c20;
+        --warn: #f2bd5c;
+        --warn-soft: #3a2c12;
+        --ok: #74d394;
+        --ok-soft: #173322;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-ui);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+      .wrap {
+        max-width: 1140px;
+        margin: 0 auto;
+        padding-inline: 20px;
+        padding-block: 36px 64px;
+        display: grid;
+        gap: 28px;
+      }
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.2;
+        text-wrap: balance;
+      }
+      h1 {
+        font-size: clamp(1.7rem, 3.6vw, 2.3rem);
+        font-weight: 700;
+      }
+      h2 {
+        font-size: 1.3rem;
+        font-weight: 650;
+      }
+      h3 {
+        font-size: 1rem;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        max-width: 72ch;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .eyebrow {
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      code {
+        font-family: var(--font-mono);
+        font-size: 0.85em;
+      }
+      header {
+        display: grid;
+        gap: 10px;
+      }
+
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 10px;
+      }
+      .tab {
+        font: 600 0.92rem var(--font-ui);
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 8px 14px;
+        cursor: pointer;
+      }
+      .tab:hover {
+        color: var(--fg);
+      }
+      .tab[aria-selected='true'] {
+        color: var(--accent);
+        background: var(--accent-soft);
+        border-color: var(--accent);
+      }
+      .tab:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      a {
+        color: var(--accent);
+      }
+
+      section.sheet {
+        display: grid;
+        gap: 20px;
+      }
+      .lede {
+        display: grid;
+        gap: 6px;
+      }
+      figure {
+        margin: 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      figure svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        min-width: 760px;
+      }
+      figcaption {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 0.84rem;
+        color: var(--muted);
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .sw {
+        display: inline-block;
+        width: 26px;
+        height: 0;
+        border-top: 2px solid var(--muted);
+      }
+      .sw.accent {
+        border-top-color: var(--accent);
+        border-top-style: dashed;
+      }
+      .sw.err {
+        border-top-color: var(--err);
+      }
+      .sw.dash {
+        border-top-style: dashed;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.88rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        background: var(--bg);
+        font-weight: 600;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      td code {
+        white-space: nowrap;
+      }
+      .pill {
+        display: inline-block;
+        font: 600 0.74rem var(--font-mono);
+        padding: 1px 7px;
+        border-radius: 5px;
+        white-space: nowrap;
+      }
+      .pill.ok {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .pill.err {
+        background: var(--err-soft);
+        color: var(--err);
+      }
+      .pill.warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .pill.info {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+        display: grid;
+        gap: 10px;
+        align-content: start;
+        min-width: 0;
+      }
+      .card ul,
+      .card ol {
+        margin: 0;
+        padding-left: 20px;
+        display: grid;
+        gap: 6px;
+      }
+      footer {
+        color: var(--muted);
+        font-size: 0.85rem;
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+      }
+
+      /* SVG drawing classes (styled from the page, theme-aware through tokens) */
+      .t-box {
+        fill: var(--surface);
+        stroke: var(--line);
+        stroke-width: 1.5;
+      }
+      .t-head {
+        fill: var(--accent-soft);
+        stroke: var(--accent);
+        stroke-width: 1.5;
+      }
+      .t-name {
+        fill: var(--fg);
+        font: 700 13px var(--font-mono);
+      }
+      .t-col {
+        fill: var(--fg);
+        font: 400 11.5px var(--font-mono);
+      }
+      .t-key {
+        fill: var(--accent);
+        font: 600 10px var(--font-mono);
+      }
+      .t-uq {
+        fill: var(--warn);
+        font: 600 10px var(--font-mono);
+      }
+      .t-note {
+        fill: var(--muted);
+        font: 400 11px var(--font-ui);
+      }
+      .rule-box {
+        fill: var(--accent-soft);
+        stroke: var(--accent);
+        stroke-width: 1.5;
+      }
+      .rule-title {
+        fill: var(--accent);
+        font: 700 12.5px var(--font-ui);
+      }
+      .rule-text {
+        fill: var(--fg);
+        font: 400 11.5px var(--font-mono);
+      }
+      .rule-sub {
+        fill: var(--muted);
+        font: 400 11px var(--font-ui);
+      }
+      .fk {
+        fill: none;
+        stroke: var(--muted);
+        stroke-width: 1.5;
+      }
+      .fk-c {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 1.8;
+        stroke-dasharray: 6 4;
+      }
+      .ah {
+        fill: var(--muted);
+      }
+      .ah-c {
+        fill: var(--accent);
+      }
+      .ah-e {
+        fill: var(--err);
+      }
+      .ah-ok {
+        fill: var(--ok);
+      }
+      .edge-l {
+        fill: var(--muted);
+        font: 400 10.5px var(--font-mono);
+      }
+
+      .s-box {
+        fill: var(--surface);
+        stroke: var(--line);
+        stroke-width: 1.5;
+      }
+      .s-ok {
+        fill: var(--ok-soft);
+        stroke: var(--ok);
+        stroke-width: 1.5;
+      }
+      .s-client {
+        fill: var(--accent-soft);
+        stroke: var(--accent);
+        stroke-width: 1.5;
+      }
+      .s-title {
+        fill: var(--fg);
+        font: 600 12.5px var(--font-ui);
+      }
+      .s-sub {
+        fill: var(--muted);
+        font: 400 10.5px var(--font-mono);
+      }
+      .flow {
+        fill: none;
+        stroke: var(--fg);
+        stroke-width: 1.6;
+      }
+      .ah-f {
+        fill: var(--fg);
+      }
+      .exit {
+        fill: none;
+        stroke: var(--err);
+        stroke-width: 1.5;
+      }
+      .exit-box {
+        fill: var(--err-soft);
+        stroke: var(--err);
+        stroke-width: 1.2;
+      }
+      .exit-code {
+        fill: var(--err);
+        font: 700 11.5px var(--font-mono);
+      }
+      .exit-text {
+        fill: var(--fg);
+        font: 400 10.5px var(--font-ui);
+      }
+      .replay-box {
+        fill: var(--ok-soft);
+        stroke: var(--ok);
+        stroke-width: 1.2;
+      }
+      .replay-code {
+        fill: var(--ok);
+        font: 700 11.5px var(--font-mono);
+      }
+      .tx {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 1.5;
+        stroke-dasharray: 5 4;
+      }
+      .tx-label {
+        fill: var(--accent);
+        font: 600 11px var(--font-ui);
+      }
+      .retry {
+        fill: none;
+        stroke: var(--warn);
+        stroke-width: 1.8;
+      }
+      .ah-w {
+        fill: var(--warn);
+      }
+      .retry-l {
+        fill: var(--warn);
+        font: 600 11px var(--font-ui);
+      }
+      .label-bg {
+        fill: var(--surface);
+      }
+
+      .life {
+        stroke: var(--line);
+        stroke-width: 1.5;
+        stroke-dasharray: 3 4;
+      }
+      .p-box {
+        fill: var(--surface);
+        stroke: var(--fg);
+        stroke-width: 1.4;
+      }
+      .p-name {
+        fill: var(--fg);
+        font: 600 12.5px var(--font-ui);
+      }
+      .p-sub {
+        fill: var(--muted);
+        font: 400 10px var(--font-mono);
+      }
+      .msg {
+        fill: none;
+        stroke: var(--fg);
+        stroke-width: 1.4;
+      }
+      .msg-r {
+        fill: none;
+        stroke: var(--fg);
+        stroke-width: 1.4;
+        stroke-dasharray: 5 4;
+      }
+      .msg-t {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 1.4;
+        stroke-dasharray: 5 4;
+      }
+      .m-text {
+        fill: var(--fg);
+        font: 400 11.5px var(--font-ui);
+      }
+      .m-mono {
+        fill: var(--fg);
+        font: 400 11px var(--font-mono);
+      }
+      .m-num {
+        fill: var(--accent);
+        font: 700 10.5px var(--font-mono);
+      }
+      .act {
+        fill: var(--accent-soft);
+        stroke: var(--accent);
+        stroke-width: 1;
+      }
+      .self-note {
+        fill: var(--warn-soft);
+        stroke: var(--warn);
+        stroke-width: 1;
+      }
+      .tx-band {
+        fill: var(--accent-soft);
+        opacity: 0.55;
+      }
+
+      .zone {
+        fill: none;
+        stroke: var(--line);
+        stroke-width: 1.5;
+        stroke-dasharray: 4 5;
+      }
+      .zone-l {
+        fill: var(--muted);
+        font: 600 10.5px var(--font-mono);
+        letter-spacing: 0.06em;
+      }
+      .c-box {
+        fill: var(--surface);
+        stroke: var(--line);
+        stroke-width: 1.5;
+      }
+      .c-hot {
+        fill: var(--accent-soft);
+        stroke: var(--accent);
+        stroke-width: 1.5;
+      }
+      .c-opt {
+        fill: var(--surface);
+        stroke: var(--line);
+        stroke-width: 1.5;
+        stroke-dasharray: 5 4;
+      }
+      .c-name {
+        fill: var(--fg);
+        font: 700 13px var(--font-ui);
+      }
+      .c-sub {
+        fill: var(--muted);
+        font: 400 10.5px var(--font-mono);
+      }
+      .port {
+        fill: var(--warn);
+        font: 700 11px var(--font-mono);
+      }
+      .wire {
+        fill: none;
+        stroke: var(--muted);
+        stroke-width: 1.5;
+      }
+      .wire-o {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 1.5;
+        stroke-dasharray: 5 4;
+      }
+      .wire-l {
+        fill: var(--fg);
+        font: 400 10.5px var(--font-mono);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .tab {
+          transition:
+            background 0.15s,
+            color 0.15s;
+        }
+      }
+      @media (max-width: 520px) {
+        .wrap {
+          padding-block: 24px 48px;
+        }
+      }
+    </style>
+
+    <div class="wrap">
+      <header>
+        <span class="eyebrow">Keyloop · Service Scheduler</span>
+        <h1>Scheduler blueprints</h1>
+        <p class="muted">
+          Three views of the same system: what is stored, what happens when a booking request
+          arrives (and every way it can be turned away), and which pieces run where, on which ports.
+        </p>
+      </header>
+
+      <nav class="tabs" role="tablist" aria-label="Blueprint sheets">
+        <button
+          class="tab"
+          role="tab"
+          id="tab-data"
+          aria-controls="data"
+          aria-selected="true"
+          type="button"
+        >
+          1 · Data model
+        </button>
+        <button
+          class="tab"
+          role="tab"
+          id="tab-traffic"
+          aria-controls="traffic"
+          aria-selected="false"
+          type="button"
+        >
+          2 · Request traffic
+        </button>
+        <button
+          class="tab"
+          role="tab"
+          id="tab-stack"
+          aria-controls="stack"
+          aria-selected="false"
+          type="button"
+        >
+          3 · Tech stack &amp; ports
+        </button>
+      </nav>
+
+      <!-- ===================== 1. DATA MODEL ===================== -->
+      <section class="sheet" id="data" role="tabpanel" aria-labelledby="tab-data">
+        <div class="lede">
+          <h2>All 8 tables in one picture</h2>
+          <p class="muted">
+            Reference data on the sides, the one table that changes (<code>appointments</code>) in
+            the middle. Arrows point from the foreign key to the row it references. The teal dashed
+            arrows are composite foreign keys: they check two columns at once, so the database
+            itself rejects a bay from another dealership, an unqualified technician, or someone
+            else's car.
+          </p>
+        </div>
+
+        <figure>
+          <div class="scroll">
+            <svg
+              viewBox="0 0 1080 650"
+              role="img"
+              aria-label="Entity relationship diagram: appointments references dealerships, service bays, technicians, technician qualifications, service types, customers and vehicles; composite foreign keys and exclusion constraints enforce the booking rules in Postgres."
+            >
+              <defs>
+                <marker
+                  id="er-a"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path class="ah" d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker
+                  id="er-c"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path class="ah-c" d="M0,0 L10,5 L0,10 z" />
+                </marker>
+              </defs>
+
+              <!-- dealerships -->
+              <rect class="t-box" x="20" y="20" width="250" height="118" rx="6" />
+              <rect class="t-head" x="20" y="20" width="250" height="28" rx="6" />
+              <text class="t-name" x="32" y="39">dealerships</text>
+              <text class="t-col" x="32" y="62">id</text>
+              <text class="t-key" x="258" y="62" text-anchor="end">PK</text>
+              <text class="t-col" x="32" y="80">name</text>
+              <text class="t-uq" x="258" y="80" text-anchor="end">UNIQUE</text>
+              <text class="t-col" x="32" y="98">time_zone (IANA)</text>
+              <text class="t-col" x="32" y="116">opens_at time</text>
+              <text class="t-col" x="32" y="134">closes_at time</text>
+              <text class="t-uq" x="258" y="134" text-anchor="end">&gt; opens</text>
+
+              <!-- service_bays -->
+              <rect class="t-box" x="20" y="190" width="250" height="82" rx="6" />
+              <rect class="t-head" x="20" y="190" width="250" height="28" rx="6" />
+              <text class="t-name" x="32" y="209">service_bays</text>
+              <text class="t-col" x="32" y="232">id</text>
+              <text class="t-key" x="258" y="232" text-anchor="end">PK</text>
+              <text class="t-col" x="32" y="250">dealership_id</text>
+              <text class="t-key" x="258" y="250" text-anchor="end">FK</text>
+              <text class="t-col" x="32" y="268">name</text>
+              <text class="t-uq" x="258" y="268" text-anchor="end">UQ per dealership</text>
+
+              <!-- technicians -->
+              <rect class="t-box" x="20" y="330" width="250" height="82" rx="6" />
+              <rect class="t-head" x="20" y="330" width="250" height="28" rx="6" />
+              <text class="t-name" x="32" y="349">technicians</text>
+              <text class="t-col" x="32" y="372">id</text>
+              <text class="t-key" x="258" y="372" text-anchor="end">PK</text>
+              <text class="t-col" x="32" y="390">dealership_id</text>
+              <text class="t-key" x="258" y="390" text-anchor="end">FK</text>
+              <text class="t-col" x="32" y="408">name</text>
+
+              <!-- technician_qualifications -->
+              <rect class="t-box" x="20" y="490" width="250" height="64" rx="6" />
+              <rect class="t-head" x="20" y="490" width="250" height="28" rx="6" />
+              <text class="t-name" x="32" y="509">technician_qualifications</text>
+              <text class="t-col" x="32" y="532">technician_id</text>
+              <text class="t-key" x="258" y="532" text-anchor="end">PK · FK</text>
+              <text class="t-col" x="32" y="550">service_type_id</text>
+              <text class="t-key" x="258" y="550" text-anchor="end">PK · FK</text>
+
+              <!-- appointments -->
+              <rect class="t-box" x="400" y="20" width="280" height="262" rx="6" />
+              <rect class="t-head" x="400" y="20" width="280" height="28" rx="6" />
+              <text class="t-name" x="412" y="39">appointments</text>
+              <text class="t-col" x="412" y="62">id</text>
+              <text class="t-key" x="668" y="62" text-anchor="end">PK</text>
+              <text class="t-col" x="412" y="80">dealership_id</text>
+              <text class="t-key" x="668" y="80" text-anchor="end">FK</text>
+              <text class="t-col" x="412" y="98">service_bay_id</text>
+              <text class="t-key" x="668" y="98" text-anchor="end">FK</text>
+              <text class="t-col" x="412" y="116">technician_id</text>
+              <text class="t-key" x="668" y="116" text-anchor="end">FK</text>
+              <text class="t-col" x="412" y="134">service_type_id</text>
+              <text class="t-key" x="668" y="134" text-anchor="end">FK</text>
+              <text class="t-col" x="412" y="152">customer_id</text>
+              <text class="t-key" x="668" y="152" text-anchor="end">FK</text>
+              <text class="t-col" x="412" y="170">vehicle_id</text>
+              <text class="t-key" x="668" y="170" text-anchor="end">FK</text>
+              <text class="t-col" x="412" y="188">start_at timestamptz</text>
+              <text class="t-col" x="412" y="206">end_at timestamptz</text>
+              <text class="t-col" x="412" y="224">status CONFIRMED|CANCELLED</text>
+              <text class="t-col" x="412" y="242">cancelled_at</text>
+              <text class="t-col" x="412" y="260">idempotency_key</text>
+              <text class="t-uq" x="668" y="260" text-anchor="end">UNIQUE</text>
+              <text class="t-col" x="412" y="278">request_hash sha256</text>
+
+              <!-- customers -->
+              <rect class="t-box" x="810" y="20" width="250" height="118" rx="6" />
+              <rect class="t-head" x="810" y="20" width="250" height="28" rx="6" />
+              <text class="t-name" x="822" y="39">customers</text>
+              <text class="t-col" x="822" y="62">id</text>
+              <text class="t-key" x="1048" y="62" text-anchor="end">PK</text>
+              <text class="t-col" x="822" y="80">first_name</text>
+              <text class="t-col" x="822" y="98">last_name</text>
+              <text class="t-col" x="822" y="116">email</text>
+              <text class="t-uq" x="1048" y="116" text-anchor="end">UQ lower()</text>
+              <text class="t-col" x="822" y="134">phone</text>
+
+              <!-- vehicles -->
+              <rect class="t-box" x="810" y="190" width="250" height="154" rx="6" />
+              <rect class="t-head" x="810" y="190" width="250" height="28" rx="6" />
+              <text class="t-name" x="822" y="209">vehicles</text>
+              <text class="t-col" x="822" y="232">id</text>
+              <text class="t-key" x="1048" y="232" text-anchor="end">PK</text>
+              <text class="t-col" x="822" y="250">customer_id</text>
+              <text class="t-key" x="1048" y="250" text-anchor="end">FK</text>
+              <text class="t-col" x="822" y="268">vin char(17)</text>
+              <text class="t-uq" x="1048" y="268" text-anchor="end">UNIQUE</text>
+              <text class="t-col" x="822" y="286">registration</text>
+              <text class="t-col" x="822" y="304">make</text>
+              <text class="t-col" x="822" y="322">model</text>
+              <text class="t-col" x="822" y="340">year</text>
+              <text class="t-uq" x="1048" y="340" text-anchor="end">1950–2100</text>
+
+              <!-- service_types -->
+              <rect class="t-box" x="810" y="400" width="250" height="100" rx="6" />
+              <rect class="t-head" x="810" y="400" width="250" height="28" rx="6" />
+              <text class="t-name" x="822" y="419">service_types</text>
+              <text class="t-col" x="822" y="442">id</text>
+              <text class="t-key" x="1048" y="442" text-anchor="end">PK</text>
+              <text class="t-col" x="822" y="460">code</text>
+              <text class="t-uq" x="1048" y="460" text-anchor="end">UNIQUE</text>
+              <text class="t-col" x="822" y="478">name</text>
+              <text class="t-col" x="822" y="496">duration_minutes</text>
+              <text class="t-uq" x="1048" y="496" text-anchor="end">× 15</text>
+
+              <!-- database rules callout -->
+              <rect class="rule-box" x="400" y="312" width="280" height="222" rx="8" />
+              <text class="rule-title" x="414" y="334">Booking rules Postgres enforces</text>
+              <text class="rule-text" x="414" y="358">EXCLUDE no_bay_overlap</text>
+              <text class="rule-text" x="414" y="376">EXCLUDE no_technician_overlap</text>
+              <text class="rule-sub" x="414" y="394">same bay (or technician) + overlapping</text>
+              <text class="rule-sub" x="414" y="409">
+                [start_at, end_at) while CONFIRMED → 23P01
+              </text>
+              <text class="rule-text" x="414" y="434">CHECK end_at &gt; start_at</text>
+              <text class="rule-text" x="414" y="452">CHECK CANCELLED ⇔ cancelled_at set</text>
+              <text class="rule-text" x="414" y="470">CHECK key ⇔ request_hash set</text>
+              <text class="rule-sub" x="414" y="494">
+                '[)' = half-open: back-to-back is allowed;
+              </text>
+              <text class="rule-sub" x="414" y="509">cancelled rows never block a slot.</text>
+              <text class="rule-sub" x="414" y="524">
+                Every table also has created_at / updated_at.
+              </text>
+
+              <!-- relationships: child (FK holder) → parent -->
+              <path class="fk" d="M145 190 V140" marker-end="url(#er-a)" />
+              <path class="fk" d="M20 371 H8 V96 H18" marker-end="url(#er-a)" />
+              <path class="fk" d="M145 490 V414" marker-end="url(#er-a)" />
+              <path class="fk" d="M400 76 H272" marker-end="url(#er-a)" />
+              <text class="edge-l" x="336" y="70" text-anchor="middle">dealership</text>
+              <path class="fk-c" d="M400 94 H322 V231 H272" marker-end="url(#er-c)" />
+              <path class="fk-c" d="M400 112 H342 V371 H272" marker-end="url(#er-c)" />
+              <path class="fk-c" d="M400 130 H362 V522 H272" marker-end="url(#er-c)" />
+              <text class="edge-l" x="304" y="246" text-anchor="middle">bay+dealer</text>
+              <text class="edge-l" x="306" y="386" text-anchor="middle">tech+dealer</text>
+              <text class="edge-l" x="312" y="537" text-anchor="middle">tech+service</text>
+              <path class="fk" d="M680 148 H740 V80 H808" marker-end="url(#er-a)" />
+              <path class="fk-c" d="M680 166 H722 V267 H808" marker-end="url(#er-c)" />
+              <text class="edge-l" x="756" y="261" text-anchor="middle">car+owner</text>
+              <path class="fk" d="M680 130 H790 V450 H808" marker-end="url(#er-a)" />
+              <path class="fk" d="M935 190 V140" marker-end="url(#er-a)" />
+              <path class="fk" d="M145 554 V610 H935 V502" marker-end="url(#er-a)" />
+              <text class="edge-l" x="540" y="604" text-anchor="middle">
+                a technician is qualified for a service type (many-to-many)
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            Arrows go from the foreign-key column to the table it references. The four teal dashed
+            arrows are composite foreign keys; together with the two exclusion constraints, they
+            make an invalid booking impossible to store, whichever code writes it.
+          </figcaption>
+          <div class="legend" aria-hidden="true">
+            <span><i class="sw"></i> foreign key</span>
+            <span><i class="sw accent"></i> composite foreign key (checks 2 columns)</span>
+            <span><b class="pill info">PK / FK</b> key</span>
+            <span><b class="pill warn">UNIQUE / CHECK</b> constraint</span>
+          </div>
+        </figure>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Composite foreign key on appointments</th>
+                <th>References</th>
+                <th>So the database guarantees…</th>
+                <th>Rule</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>(service_bay_id, dealership_id)</code></td>
+                <td><code>service_bays (id, dealership_id)</code></td>
+                <td>the bay belongs to the booked dealership</td>
+                <td>BR-7</td>
+              </tr>
+              <tr>
+                <td><code>(technician_id, dealership_id)</code></td>
+                <td><code>technicians (id, dealership_id)</code></td>
+                <td>the technician works at that dealership</td>
+                <td>BR-8</td>
+              </tr>
+              <tr>
+                <td><code>(technician_id, service_type_id)</code></td>
+                <td><code>technician_qualifications</code></td>
+                <td>the technician is qualified for the service</td>
+                <td>BR-6, BR-8</td>
+              </tr>
+              <tr>
+                <td><code>(vehicle_id, customer_id)</code></td>
+                <td><code>vehicles (id, customer_id)</code></td>
+                <td>the vehicle is the customer's own</td>
+                <td>BR-5</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted">
+          Full column list, types and index names: <code>docs/data-dictionary.md</code>. Why
+          exclusion constraints and not locks: ADR-0006.
+        </p>
+      </section>
+
+      <!-- ===================== 2. REQUEST TRAFFIC ===================== -->
+      <section class="sheet" id="traffic" role="tabpanel" aria-labelledby="tab-traffic" hidden>
+        <div class="lede">
+          <h2>What happens to a booking request</h2>
+          <p class="muted">
+            A <code>POST /v1/appointments</code> passes six checkpoints. Each one can turn the
+            request away with its own status and code; only a request that passes them all is
+            stored. Steps 2 to 6 run in one database transaction, so a rejection never leaves
+            anything half-written.
+          </p>
+        </div>
+
+        <figure>
+          <div class="scroll">
+            <svg
+              viewBox="0 0 1080 430"
+              role="img"
+              aria-label="Booking pipeline: validate, known key, references exist, business rules, allocate, insert and commit, then 201. Each checkpoint has an exit: 400, a 201 replay or 422 for a reused key, 404, 422, 422 or 409, and a lost race that retries up to three times before 409 APPOINTMENT_CONFLICT."
+            >
+              <defs>
+                <marker
+                  id="p-f"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path class="ah-f" d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker
+                  id="p-e"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path class="ah-e" d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker
+                  id="p-w"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path class="ah-w" d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker
+                  id="p-ok"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path class="ah-ok" d="M0,0 L10,5 L0,10 z" />
+                </marker>
+              </defs>
+
+              <!-- transaction bracket over stages 2-6 -->
+              <rect class="tx" x="276" y="58" width="664" height="96" rx="10" />
+              <text class="tx-label" x="608" y="50" text-anchor="middle">
+                one database transaction · any error rolls it back
+              </text>
+
+              <!-- stages -->
+              <rect class="s-client" x="12" y="72" width="118" height="68" rx="8" />
+              <text class="s-title" x="71" y="98" text-anchor="middle">Client</text>
+              <text class="s-sub" x="71" y="116" text-anchor="middle">POST /v1/</text>
+              <text class="s-sub" x="71" y="130" text-anchor="middle">appointments</text>
+
+              <rect class="s-box" x="146" y="72" width="118" height="68" rx="8" />
+              <text class="s-title" x="205" y="96" text-anchor="middle">1 · Validate</text>
+              <text class="s-sub" x="205" y="114" text-anchor="middle">ids, ISO time,</text>
+              <text class="s-sub" x="205" y="128" text-anchor="middle">no extra fields</text>
+
+              <rect class="s-box" x="286" y="72" width="118" height="68" rx="8" />
+              <text class="s-title" x="345" y="96" text-anchor="middle">2 · Known key?</text>
+              <text class="s-sub" x="345" y="114" text-anchor="middle">Idempotency-</text>
+              <text class="s-sub" x="345" y="128" text-anchor="middle">Key lookup</text>
+
+              <rect class="s-box" x="420" y="72" width="118" height="68" rx="8" />
+              <text class="s-title" x="479" y="96" text-anchor="middle">3 · Exists?</text>
+              <text class="s-sub" x="479" y="114" text-anchor="middle">dealer, service,</text>
+              <text class="s-sub" x="479" y="128" text-anchor="middle">customer, car</text>
+
+              <rect class="s-box" x="554" y="72" width="118" height="68" rx="8" />
+              <text class="s-title" x="613" y="96" text-anchor="middle">4 · Rules</text>
+              <text class="s-sub" x="613" y="114" text-anchor="middle">own car, future,</text>
+              <text class="s-sub" x="613" y="128" text-anchor="middle">opening hours</text>
+
+              <rect class="s-box" x="688" y="72" width="118" height="68" rx="8" />
+              <text class="s-title" x="747" y="96" text-anchor="middle">5 · Allocate</text>
+              <text class="s-sub" x="747" y="114" text-anchor="middle">free bay + free</text>
+              <text class="s-sub" x="747" y="128" text-anchor="middle">qualified tech</text>
+
+              <rect class="s-box" x="822" y="72" width="108" height="68" rx="8" />
+              <text class="s-title" x="876" y="96" text-anchor="middle">6 · Insert</text>
+              <text class="s-sub" x="876" y="114" text-anchor="middle">+ COMMIT</text>
+              <text class="s-sub" x="876" y="128" text-anchor="middle">(DB checks)</text>
+
+              <rect class="s-ok" x="956" y="72" width="112" height="68" rx="8" />
+              <text class="s-title" x="1012" y="98" text-anchor="middle">201 Created</text>
+              <text class="s-sub" x="1012" y="116" text-anchor="middle">{ id } +</text>
+              <text class="s-sub" x="1012" y="130" text-anchor="middle">Location</text>
+
+              <!-- happy flow -->
+              <path class="flow" d="M130 106 H144" marker-end="url(#p-f)" />
+              <path class="flow" d="M264 106 H284" marker-end="url(#p-f)" />
+              <path class="flow" d="M404 106 H418" marker-end="url(#p-f)" />
+              <path class="flow" d="M538 106 H552" marker-end="url(#p-f)" />
+              <path class="flow" d="M672 106 H686" marker-end="url(#p-f)" />
+              <path class="flow" d="M806 106 H820" marker-end="url(#p-f)" />
+              <path class="flow" d="M930 106 H954" marker-end="url(#p-f)" />
+
+              <!-- exits -->
+              <path class="exit" d="M205 140 V226" marker-end="url(#p-e)" />
+              <rect class="exit-box" x="146" y="230" width="118" height="54" rx="6" />
+              <text class="exit-code" x="205" y="252" text-anchor="middle">400</text>
+              <text class="exit-text" x="205" y="270" text-anchor="middle">bad input</text>
+
+              <path class="exit" d="M345 154 V226" marker-end="url(#p-e)" />
+              <rect class="replay-box" x="286" y="230" width="118" height="40" rx="6" />
+              <text class="replay-code" x="345" y="248" text-anchor="middle">201 replay</text>
+              <text class="exit-text" x="345" y="263" text-anchor="middle">same key + body</text>
+              <rect class="exit-box" x="286" y="276" width="118" height="40" rx="6" />
+              <text class="exit-code" x="345" y="294" text-anchor="middle">422</text>
+              <text class="exit-text" x="345" y="309" text-anchor="middle">key reused</text>
+
+              <path class="exit" d="M479 154 V226" marker-end="url(#p-e)" />
+              <rect class="exit-box" x="420" y="230" width="118" height="54" rx="6" />
+              <text class="exit-code" x="479" y="252" text-anchor="middle">404</text>
+              <text class="exit-text" x="479" y="270" text-anchor="middle">not found</text>
+
+              <path class="exit" d="M613 154 V226" marker-end="url(#p-e)" />
+              <rect class="exit-box" x="554" y="230" width="118" height="54" rx="6" />
+              <text class="exit-code" x="613" y="252" text-anchor="middle">422</text>
+              <text class="exit-text" x="613" y="270" text-anchor="middle">rule broken</text>
+
+              <path class="exit" d="M747 154 V226" marker-end="url(#p-e)" />
+              <rect class="exit-box" x="688" y="230" width="118" height="54" rx="6" />
+              <text class="exit-code" x="747" y="252" text-anchor="middle">422 · 409</text>
+              <text class="exit-text" x="747" y="270" text-anchor="middle">unsupported · full</text>
+
+              <!-- lost race: retry loop back to step 2, then give up -->
+              <path class="retry" d="M876 154 V188 H345 V158" marker-end="url(#p-w)" />
+              <rect class="label-bg" x="452" y="194" width="320" height="18" rx="4" />
+              <text class="retry-l" x="612" y="207" text-anchor="middle">
+                lost a race → retry in a new transaction (up to 3×)
+              </text>
+              <path class="exit" d="M902 154 V226" marker-end="url(#p-e)" />
+              <rect class="exit-box" x="840" y="230" width="124" height="54" rx="6" />
+              <text class="exit-code" x="902" y="252" text-anchor="middle">409</text>
+              <text class="exit-text" x="902" y="270" text-anchor="middle">
+                still losing after 3
+              </text>
+
+              <!-- anywhere -->
+              <rect class="exit-box" x="146" y="350" width="818" height="44" rx="6" />
+              <text class="exit-code" x="166" y="377">500</text>
+              <text class="exit-text" x="204" y="377">
+                Anything unexpected, at any step (e.g. the database is down): INTERNAL_ERROR, a
+                generic message, the transaction rolled back, details only in the logs.
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            Left to right is the happy path. Each red arrow is a way out, with its HTTP status. The
+            orange loop is the race case: the database's exclusion constraint rejects the second of
+            two simultaneous bookings, and that request starts over in a fresh transaction, where it
+            either finds another free bay or technician or gets an honest 409.
+          </figcaption>
+        </figure>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Checkpoint</th>
+                <th>Response</th>
+                <th>Error code(s)</th>
+                <th>Example</th>
+                <th>Trace <code>outcome</code></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1 · Validate (before the use case runs)</td>
+                <td><span class="pill err">400</span></td>
+                <td><code>VALIDATION_FAILED</code> with <code>details[]</code></td>
+                <td>
+                  bad UUID, <code>start</code> without an offset, an extra
+                  <code>serviceBayId</code> field
+                </td>
+                <td>no handler span</td>
+              </tr>
+              <tr>
+                <td rowspan="2">2 · Known Idempotency-Key</td>
+                <td><span class="pill ok">201</span></td>
+                <td>none: the original booking is replayed</td>
+                <td>a client retries after a timeout</td>
+                <td><code>success</code></td>
+              </tr>
+              <tr>
+                <td><span class="pill err">422</span></td>
+                <td><code>IDEMPOTENCY_KEY_REUSED</code></td>
+                <td>same key, different booking</td>
+                <td><code>rejected</code></td>
+              </tr>
+              <tr>
+                <td>3 · References exist</td>
+                <td><span class="pill err">404</span></td>
+                <td>
+                  <code>DEALERSHIP_</code> / <code>SERVICE_TYPE_</code> / <code>CUSTOMER_</code> /
+                  <code>VEHICLE_NOT_FOUND</code>
+                </td>
+                <td>unknown vehicle id</td>
+                <td><code>not_found</code></td>
+              </tr>
+              <tr>
+                <td>4 · Business rules</td>
+                <td><span class="pill err">422</span></td>
+                <td>
+                  <code>VEHICLE_NOT_OWNED_BY_CUSTOMER</code>, <code>APPOINTMENT_IN_PAST</code>,
+                  <code>OUTSIDE_OPENING_HOURS</code>
+                </td>
+                <td>a 2-hour service at 15:30 when it closes at 17:00</td>
+                <td><code>rejected</code></td>
+              </tr>
+              <tr>
+                <td rowspan="2">5 · Allocate</td>
+                <td><span class="pill err">422</span></td>
+                <td><code>SERVICE_TYPE_NOT_SUPPORTED</code></td>
+                <td>EV battery check at Hanoi</td>
+                <td><code>rejected</code></td>
+              </tr>
+              <tr>
+                <td><span class="pill warn">409</span></td>
+                <td>
+                  <code>NO_SERVICE_BAY_AVAILABLE</code>, then <code>NO_TECHNICIAN_AVAILABLE</code>
+                </td>
+                <td>Hanoi's only bay is taken</td>
+                <td><code>conflict</code></td>
+              </tr>
+              <tr>
+                <td>6 · Insert lost a race</td>
+                <td>retry, then <span class="pill warn">409</span></td>
+                <td><code>APPOINTMENT_CONFLICT</code> after 3 retries</td>
+                <td>10 identical requests at the same moment</td>
+                <td><code>conflict</code></td>
+              </tr>
+              <tr>
+                <td>Anywhere</td>
+                <td><span class="pill err">500</span></td>
+                <td><code>INTERNAL_ERROR</code></td>
+                <td>the database is unreachable</td>
+                <td><code>error</code> (span marked as error)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="lede">
+          <h3>The happy path, message by message</h3>
+          <p class="muted">
+            The same request, as calls between the parts. The shaded band is the database
+            transaction.
+          </p>
+        </div>
+        <figure>
+          <div class="scroll">
+            <svg
+              viewBox="0 0 1080 560"
+              role="img"
+              aria-label="Sequence of a successful booking: client to API, API to the CreateAppointment handler through the command bus, handler to Postgres for lookups and the insert inside one transaction, response back to the client, and telemetry to Grafana."
+            >
+              <defs>
+                <marker
+                  id="q-a"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path class="ah-f" d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker
+                  id="q-t"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path class="ah-c" d="M0,0 L10,5 L0,10 z" />
+                </marker>
+              </defs>
+              <!-- transaction band -->
+              <rect class="tx-band" x="430" y="166" width="490" height="266" rx="6" />
+              <!-- participants -->
+              <rect class="p-box" x="20" y="16" width="140" height="48" rx="8" />
+              <text class="p-name" x="90" y="38" text-anchor="middle">Client</text>
+              <text class="p-sub" x="90" y="54" text-anchor="middle">Swagger · curl</text>
+              <rect class="p-box" x="230" y="16" width="160" height="48" rx="8" />
+              <text class="p-name" x="310" y="38" text-anchor="middle">API (HTTP layer)</text>
+              <text class="p-sub" x="310" y="54" text-anchor="middle">controller · pipe</text>
+              <rect class="p-box" x="460" y="16" width="170" height="48" rx="8" />
+              <text class="p-name" x="545" y="38" text-anchor="middle">CreateAppointment</text>
+              <text class="p-sub" x="545" y="54" text-anchor="middle">handler + domain</text>
+              <rect class="p-box" x="775" y="16" width="130" height="48" rx="8" />
+              <text class="p-name" x="840" y="38" text-anchor="middle">Postgres</text>
+              <text class="p-sub" x="840" y="54" text-anchor="middle">RDS on floci</text>
+              <rect class="p-box" x="930" y="16" width="130" height="48" rx="8" />
+              <text class="p-name" x="995" y="38" text-anchor="middle">otel-lgtm</text>
+              <text class="p-sub" x="995" y="54" text-anchor="middle">Grafana stack</text>
+              <line class="life" x1="90" y1="64" x2="90" y2="545" />
+              <line class="life" x1="310" y1="64" x2="310" y2="545" />
+              <line class="life" x1="545" y1="64" x2="545" y2="545" />
+              <line class="life" x1="840" y1="64" x2="840" y2="545" />
+              <line class="life" x1="995" y1="64" x2="995" y2="545" />
+
+              <!-- 1 -->
+              <path class="msg" d="M90 94 H306" marker-end="url(#q-a)" />
+              <text class="m-num" x="98" y="88">1</text>
+              <text class="m-text" x="112" y="88">POST /v1/appointments (+ Idempotency-Key)</text>
+              <!-- 2 self -->
+              <rect class="self-note" x="318" y="104" width="218" height="26" rx="5" />
+              <text class="m-num" x="326" y="121">2</text>
+              <text class="m-text" x="340" y="121">validate DTO → build command</text>
+              <!-- 3 -->
+              <path class="msg" d="M310 152 H541" marker-end="url(#q-a)" />
+              <text class="m-num" x="318" y="146">3</text>
+              <text class="m-mono" x="332" y="146">CommandBus.execute (span starts)</text>
+              <!-- 4 -->
+              <path class="msg" d="M545 186 H836" marker-end="url(#q-a)" />
+              <text class="m-num" x="553" y="180">4</text>
+              <text class="m-mono" x="567" y="180">BEGIN · find by idempotency_key</text>
+              <!-- 5 -->
+              <path class="msg" d="M545 220 H836" marker-end="url(#q-a)" />
+              <text class="m-num" x="553" y="214">5</text>
+              <text class="m-mono" x="567" y="214">dealer, service, customer, car owner</text>
+              <!-- 6 self -->
+              <rect class="self-note" x="430" y="230" width="230" height="26" rx="5" />
+              <text class="m-num" x="438" y="247">6</text>
+              <text class="m-text" x="452" y="247">future start? fits opening hours?</text>
+              <!-- 7 -->
+              <path class="msg" d="M545 286 H836" marker-end="url(#q-a)" />
+              <text class="m-num" x="553" y="280">7</text>
+              <text class="m-mono" x="567" y="280">candidate bays, techs, overlaps</text>
+              <!-- 8 self -->
+              <rect class="self-note" x="430" y="296" width="230" height="26" rx="5" />
+              <text class="m-num" x="438" y="313">8</text>
+              <text class="m-text" x="452" y="313">allocator picks bay + technician</text>
+              <!-- 9 -->
+              <path class="msg" d="M545 352 H836" marker-end="url(#q-a)" />
+              <text class="m-num" x="553" y="346">9</text>
+              <text class="m-mono" x="567" y="346">INSERT appointment</text>
+              <!-- 10 -->
+              <path class="msg-r" d="M840 392 H549" marker-end="url(#q-a)" />
+              <text class="m-num" x="583" y="386">10</text>
+              <text class="m-text" x="601" y="386">constraints hold · COMMIT</text>
+              <!-- 11 -->
+              <path class="msg-r" d="M545 456 H314" marker-end="url(#q-a)" />
+              <text class="m-num" x="330" y="450">11</text>
+              <text class="m-mono" x="348" y="450">{ id } · created_total +1</text>
+              <!-- 12 -->
+              <path class="msg-r" d="M310 492 H94" marker-end="url(#q-a)" />
+              <text class="m-num" x="104" y="486">12</text>
+              <text class="m-mono" x="122" y="486">201 · Location · x-request-id</text>
+              <!-- 13 telemetry -->
+              <path class="msg-t" d="M310 528 H991" marker-end="url(#q-t)" />
+              <text class="m-num" x="330" y="522">13</text>
+              <text class="m-mono" x="348" y="522">
+                OTLP :4318 — trace (HTTP → handler → each SQL), log line, metrics
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            Steps 4 to 10 run in the transaction (shaded). Steps 6 and 8 are pure domain code with
+            no I/O, which is why every business rule is unit-tested without a database. Step 13 is
+            batched in the background and never slows the response.
+          </figcaption>
+        </figure>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Shape of every error response</th>
+                <th>Example (409)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  The same JSON for every failure: a stable <code>code</code> to switch on, a human
+                  message, and <code>details[]</code> with the field that caused it. Stack traces
+                  and database errors never reach the client.
+                </td>
+                <td>
+                  <code
+                    >{"error":{"code":"NO_SERVICE_BAY_AVAILABLE","message":"No service bay is free
+                    for the whole requested slot","details":[]}}</code
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===================== 3. TECH STACK ===================== -->
+      <section class="sheet" id="stack" role="tabpanel" aria-labelledby="tab-stack" hidden>
+        <div class="lede">
+          <h2>What runs where, and on which port</h2>
+          <p class="muted">
+            <code>docker compose --profile app up --build -d --wait</code> starts everything below
+            on one Docker network. floci plays AWS: it answers AWS API calls on
+            <code>:4566</code> and starts real containers (Postgres, its console, a registry, ECS
+            tasks) through the Docker socket.
+          </p>
+        </div>
+
+        <figure>
+          <div class="scroll">
+            <svg
+              viewBox="0 0 1080 600"
+              role="img"
+              aria-label="Topology: your browser reaches the API on port 3000, Grafana on 3001 and the floci console on 4566. The API reads its database secret from floci on 4566, sends SQL to the RDS proxy on 7001 which forwards to a real Postgres container, and sends telemetry to otel-lgtm on 4318. Terraform bootstrap and the migrate job run once before the API starts."
+            >
+              <defs>
+                <marker
+                  id="w-a"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path class="ah" d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker
+                  id="w-o"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path class="ah-c" d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <!-- Service badges in the AWS architecture-icon style (category colour + simple glyph); not official AWS artwork. -->
+                <symbol id="i-secrets" viewBox="0 0 40 40">
+                  <rect width="40" height="40" rx="7" fill="#dd344c" />
+                  <circle cx="15" cy="20" r="6" fill="none" stroke="#fff" stroke-width="2.6" />
+                  <path
+                    d="M21 20 H32 M28 20 V25 M32 20 V24"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.6"
+                    stroke-linecap="round"
+                  />
+                </symbol>
+                <symbol id="i-iam" viewBox="0 0 40 40">
+                  <rect width="40" height="40" rx="7" fill="#dd344c" />
+                  <path
+                    d="M20 8 L30 12 V20 C30 26 25.5 30 20 32 C14.5 30 10 26 10 20 V12 Z"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.4"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M15.5 20 L19 23.5 L25 16.5"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </symbol>
+                <symbol id="i-rds" viewBox="0 0 40 40">
+                  <rect width="40" height="40" rx="7" fill="#3b5bdb" />
+                  <ellipse
+                    cx="20"
+                    cy="12"
+                    rx="9"
+                    ry="3.5"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.4"
+                  />
+                  <path
+                    d="M11 12 V28 C11 30 15 31.5 20 31.5 C25 31.5 29 30 29 28 V12 M11 20 C11 22 15 23.5 20 23.5 C25 23.5 29 22 29 20"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.4"
+                  />
+                </symbol>
+                <symbol id="i-ecr" viewBox="0 0 40 40">
+                  <rect width="40" height="40" rx="7" fill="#ed7100" />
+                  <rect
+                    x="10"
+                    y="10"
+                    width="20"
+                    height="20"
+                    rx="2"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.4"
+                  />
+                  <path d="M10 17 H30 M10 24 H30" fill="none" stroke="#fff" stroke-width="2.4" />
+                  <circle cx="14" cy="13.5" r="1.4" fill="#fff" />
+                </symbol>
+                <symbol id="i-ecs" viewBox="0 0 40 40">
+                  <rect width="40" height="40" rx="7" fill="#ed7100" />
+                  <rect
+                    x="9"
+                    y="17"
+                    width="9"
+                    height="9"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.2"
+                  />
+                  <rect
+                    x="22"
+                    y="17"
+                    width="9"
+                    height="9"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.2"
+                  />
+                  <rect
+                    x="15.5"
+                    y="7"
+                    width="9"
+                    height="9"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.2"
+                  />
+                  <path d="M9 31 H31" stroke="#fff" stroke-width="2.2" stroke-linecap="round" />
+                </symbol>
+                <symbol id="i-elb" viewBox="0 0 40 40">
+                  <rect width="40" height="40" rx="7" fill="#8c4fff" />
+                  <circle cx="12" cy="20" r="3.5" fill="#fff" />
+                  <path
+                    d="M15.5 20 L29 11 M15.5 20 H29 M15.5 20 L29 29"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                  />
+                  <circle cx="29.5" cy="11" r="2.2" fill="#fff" />
+                  <circle cx="29.5" cy="20" r="2.2" fill="#fff" />
+                  <circle cx="29.5" cy="29" r="2.2" fill="#fff" />
+                </symbol>
+                <symbol id="i-vpc" viewBox="0 0 40 40">
+                  <rect width="40" height="40" rx="7" fill="#8c4fff" />
+                  <path
+                    d="M13 27 C9 27 7.5 24 9 21.5 C9.5 18 13 17 14.5 18 C15.5 13.5 21 12 24 15 C27.5 14 30.5 16.5 30 20 C33 21 33 27 28.5 27 Z"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.3"
+                    stroke-linejoin="round"
+                  />
+                </symbol>
+                <symbol id="i-logs" viewBox="0 0 40 40">
+                  <rect width="40" height="40" rx="7" fill="#e7157b" />
+                  <path
+                    d="M12 9 H24 L29 14 V31 H12 Z"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.3"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M16 19 H25 M16 23.5 H25 M16 28 H21"
+                    stroke="#fff"
+                    stroke-width="2.3"
+                    stroke-linecap="round"
+                  />
+                </symbol>
+              </defs>
+
+              <!-- zones -->
+              <rect class="zone" x="12" y="20" width="200" height="560" rx="10" />
+              <text class="zone-l" x="26" y="40">YOUR MACHINE</text>
+              <rect class="zone" x="236" y="20" width="532" height="560" rx="10" />
+              <text class="zone-l" x="250" y="40">COMPOSE NETWORK keyloop_default</text>
+              <rect class="zone" x="792" y="20" width="276" height="560" rx="10" />
+              <text class="zone-l" x="806" y="40">STARTED BY FLOCI (docker.sock)</text>
+
+              <!-- host -->
+              <rect class="c-box" x="28" y="70" width="168" height="74" rx="8" />
+              <text class="c-name" x="112" y="98" text-anchor="middle">Browser · curl</text>
+              <text class="c-sub" x="112" y="116" text-anchor="middle">Swagger, Grafana,</text>
+              <text class="c-sub" x="112" y="130" text-anchor="middle">AWS console</text>
+              <rect class="c-opt" x="28" y="470" width="168" height="80" rx="8" />
+              <text class="c-name" x="112" y="496" text-anchor="middle">pnpm (optional)</text>
+              <text class="c-sub" x="112" y="514" text-anchor="middle">tests (Testcontainers)</text>
+              <text class="c-sub" x="112" y="528" text-anchor="middle">infra:ecs, load check</text>
+
+              <!-- compose services -->
+              <rect class="c-hot" x="262" y="70" width="216" height="92" rx="8" />
+              <text class="c-name" x="370" y="96" text-anchor="middle">api</text>
+              <text class="c-sub" x="370" y="114" text-anchor="middle">
+                NestJS · Node 24 · Prisma
+              </text>
+              <text class="port" x="370" y="134" text-anchor="middle">:3000 → host 3000</text>
+              <text class="c-sub" x="370" y="152" text-anchor="middle">/v1 · /docs · /health</text>
+
+              <rect class="c-box" x="526" y="70" width="222" height="92" rx="8" />
+              <text class="c-name" x="637" y="96" text-anchor="middle">otel-lgtm 0.36.0</text>
+              <text class="c-sub" x="637" y="114" text-anchor="middle">
+                Grafana · Tempo · Loki · Prometheus
+              </text>
+              <text class="port" x="637" y="134" text-anchor="middle">
+                Grafana :3000 → host 3001
+              </text>
+              <text class="port" x="637" y="152" text-anchor="middle">OTLP :4317 / :4318</text>
+
+              <rect class="c-box" x="262" y="236" width="486" height="168" rx="8" />
+              <text class="c-name" x="505" y="258" text-anchor="middle">
+                floci 2.2.0 · local AWS
+              </text>
+              <use href="#i-secrets" x="282" y="268" width="40" height="40" />
+              <use href="#i-rds" x="340" y="268" width="40" height="40" />
+              <use href="#i-ecr" x="398" y="268" width="40" height="40" />
+              <use href="#i-ecs" x="456" y="268" width="40" height="40" />
+              <use href="#i-elb" x="514" y="268" width="40" height="40" />
+              <use href="#i-vpc" x="572" y="268" width="40" height="40" />
+              <use href="#i-iam" x="630" y="268" width="40" height="40" />
+              <use href="#i-logs" x="688" y="268" width="40" height="40" />
+              <text class="c-sub" x="302" y="322" text-anchor="middle">Secrets</text>
+              <text class="c-sub" x="360" y="322" text-anchor="middle">RDS</text>
+              <text class="c-sub" x="418" y="322" text-anchor="middle">ECR</text>
+              <text class="c-sub" x="476" y="322" text-anchor="middle">ECS</text>
+              <text class="c-sub" x="534" y="322" text-anchor="middle">ELB</text>
+              <text class="c-sub" x="592" y="322" text-anchor="middle">VPC</text>
+              <text class="c-sub" x="650" y="322" text-anchor="middle">IAM</text>
+              <text class="c-sub" x="708" y="322" text-anchor="middle">Logs</text>
+              <text class="port" x="505" y="350" text-anchor="middle">
+                :4566 AWS API + console · :7001–7099 RDS proxy
+              </text>
+              <text class="port" x="505" y="370" text-anchor="middle">
+                :8080 ALB listener (only with pnpm infra:ecs)
+              </text>
+              <text class="c-sub" x="505" y="390" text-anchor="middle">
+                persistent volume floci-data
+              </text>
+
+              <rect class="c-box" x="262" y="470" width="216" height="80" rx="8" />
+              <text class="c-name" x="370" y="496" text-anchor="middle">bootstrap (runs once)</text>
+              <text class="c-sub" x="370" y="514" text-anchor="middle">Terraform 1.16.5</text>
+              <text class="c-sub" x="370" y="528" text-anchor="middle">
+                creates RDS + DB secrets
+              </text>
+
+              <rect class="c-box" x="526" y="470" width="222" height="80" rx="8" />
+              <text class="c-name" x="637" y="496" text-anchor="middle">migrate (runs once)</text>
+              <text class="c-sub" x="637" y="514" text-anchor="middle">Prisma migrate deploy</text>
+              <text class="c-sub" x="637" y="528" text-anchor="middle">+ seed (demo data)</text>
+
+              <!-- floci-started containers -->
+              <rect class="c-hot" x="808" y="70" width="244" height="74" rx="8" />
+              <use href="#i-rds" x="818" y="82" width="30" height="30" />
+              <text class="c-name" x="944" y="96" text-anchor="middle">
+                Postgres 17 (the "RDS")
+              </text>
+              <text class="c-sub" x="944" y="114" text-anchor="middle">
+                floci-aws-rds-… container
+              </text>
+              <text class="port" x="944" y="132" text-anchor="middle">
+                :5432 behind proxy :7001
+              </text>
+
+              <rect class="c-box" x="808" y="190" width="244" height="64" rx="8" />
+              <text class="c-name" x="930" y="214" text-anchor="middle">floci-ui 0.6.0</text>
+              <text class="port" x="930" y="234" text-anchor="middle">
+                :4500 (via :4566/_floci/ui)
+              </text>
+
+              <rect class="c-opt" x="808" y="300" width="244" height="64" rx="8" />
+              <use href="#i-ecr" x="818" y="317" width="30" height="30" />
+              <text class="c-name" x="944" y="324" text-anchor="middle">ECR registry</text>
+              <text class="c-sub" x="944" y="344" text-anchor="middle">
+                registry:2 (infra:ecs only)
+              </text>
+
+              <rect class="c-opt" x="808" y="410" width="244" height="64" rx="8" />
+              <use href="#i-ecs" x="818" y="427" width="30" height="30" />
+              <text class="c-name" x="944" y="434" text-anchor="middle">
+                ECS task: the API again
+              </text>
+              <text class="port" x="944" y="454" text-anchor="middle">:3000 behind ALB :8080</text>
+
+              <!-- wires: browser -->
+              <path class="wire" d="M196 96 H260" marker-end="url(#w-a)" />
+              <text class="wire-l" x="228" y="90" text-anchor="middle">:3000</text>
+              <path class="wire" d="M112 70 V54 H637 V68" marker-end="url(#w-a)" />
+              <text class="wire-l" x="575" y="50" text-anchor="middle">:3001 Grafana</text>
+              <path class="wire" d="M196 126 H222 V300 H260" marker-end="url(#w-a)" />
+              <text class="wire-l" x="190" y="230" text-anchor="end">:4566/_floci/ui</text>
+
+              <!-- wires: api -->
+              <path class="wire" d="M320 162 V234" marker-end="url(#w-a)" />
+              <text class="wire-l" x="314" y="184" text-anchor="end">read DB</text>
+              <text class="wire-l" x="314" y="198" text-anchor="end">secret :4566</text>
+              <text class="wire-l" x="314" y="212" text-anchor="end">(at startup)</text>
+              <path class="wire" d="M420 162 V234" marker-end="url(#w-a)" />
+              <text class="wire-l" x="428" y="198">SQL :7001</text>
+              <path class="wire-o" d="M478 116 H524" marker-end="url(#w-o)" />
+              <text class="wire-l" x="501" y="108" text-anchor="middle">OTLP</text>
+              <text class="wire-l" x="501" y="132" text-anchor="middle">:4318</text>
+
+              <!-- wires: floci → containers -->
+              <path class="wire" d="M748 290 H776 V107 H806" marker-end="url(#w-a)" />
+              <text class="wire-l" x="770" y="200" text-anchor="end">proxy</text>
+              <path class="wire" d="M748 310 H786 V222 H806" marker-end="url(#w-a)" />
+              <path class="wire-o" d="M748 352 H780 V442 H806" marker-end="url(#w-o)" />
+              <text class="wire-l" x="784" y="394">:8080</text>
+              <path class="wire-o" d="M748 334 H806" marker-end="url(#w-o)" />
+
+              <!-- wires: one-shots -->
+              <path class="wire" d="M370 470 V406" marker-end="url(#w-a)" />
+              <text class="wire-l" x="378" y="442">Terraform → :4566</text>
+              <path class="wire" d="M637 470 V406" marker-end="url(#w-a)" />
+              <text class="wire-l" x="645" y="442">secret + SQL</text>
+              <path class="wire" d="M478 510 H524" marker-end="url(#w-a)" />
+              <text class="wire-l" x="501" y="503" text-anchor="middle">then</text>
+
+              <!-- wires: pnpm optional -->
+              <path class="wire-o" d="M196 510 H230 V560 H760 V392 H750" marker-end="url(#w-o)" />
+              <text class="wire-l" x="494" y="574" text-anchor="middle">
+                pnpm infra:ecs → build image, push to ECR, terraform apply (ECS + ALB)
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            Solid wires are the default stack. Teal dashed wires are telemetry and the optional ECS
+            deployment. The coloured tiles are service badges in the AWS architecture-icon style
+            (category colours), not official AWS artwork. The API never knows a database password in
+            advance: it reads the secret from Secrets Manager at startup and connects to the host
+            and port inside it.
+          </figcaption>
+        </figure>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Host port</th>
+                <th>What</th>
+                <th>Open it for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>3000</code></td>
+                <td>API (NestJS)</td>
+                <td>Swagger <code>/docs</code>, <code>/health</code>, <code>/v1/…</code></td>
+              </tr>
+              <tr>
+                <td><code>3001</code></td>
+                <td>Grafana (in otel-lgtm)</td>
+                <td>traces, logs, metrics under Explore</td>
+              </tr>
+              <tr>
+                <td><code>4317</code> / <code>4318</code></td>
+                <td>OTLP gRPC / HTTP (otel-lgtm)</td>
+                <td>telemetry in; the API uses <code>4318</code></td>
+              </tr>
+              <tr>
+                <td><code>4566</code></td>
+                <td>floci: every AWS API, plus the console at <code>/_floci/ui</code></td>
+                <td>AWS CLI / SDK with <code>--endpoint-url</code>; the browser console</td>
+              </tr>
+              <tr>
+                <td><code>7001</code> (7001–7099)</td>
+                <td>RDS proxy in floci → Postgres <code>5432</code></td>
+                <td>a database client; credentials in secret <code>keyloop/local/db</code></td>
+              </tr>
+              <tr>
+                <td><code>8080</code></td>
+                <td>ALB listener (only after <code>pnpm infra:ecs</code>)</td>
+                <td>the API running as an ECS service</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <h3>Startup order</h3>
+            <ol>
+              <li><b>floci</b> becomes healthy (AWS APIs on :4566).</li>
+              <li>
+                <b>bootstrap</b> runs Terraform: creates the Postgres instance and its secrets.
+              </li>
+              <li><b>migrate</b> reads the secret, applies the migrations, loads the seed.</li>
+              <li>
+                <b>api</b> reads the secret, connects, and turns healthy on <code>/health</code>.
+              </li>
+            </ol>
+            <p class="muted">
+              otel-lgtm starts alongside. Each step waits for the one before it to succeed.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Inside the API container</h3>
+            <ul>
+              <li>
+                <b>NestJS 12</b> + <b>@nestjs/cqrs</b>: controllers send commands and queries
+                through a bus to one handler per use case.
+              </li>
+              <li><b>class-validator</b>: request validation at the edge.</li>
+              <li>
+                <b>Prisma 7</b> + <code>@prisma/adapter-pg</code>, with
+                <b>nestjs-cls</b> transactions around each command.
+              </li>
+              <li><b>AWS SDK v3</b> Secrets Manager client: the DB credentials.</li>
+              <li>
+                <b>pino</b> (nestjs-pino) JSON logs and the <b>OpenTelemetry</b> SDK: traces, logs,
+                metrics over OTLP.
+              </li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Around it</h3>
+            <ul>
+              <li>
+                <b>Terraform 1.16.5</b> with the AWS provider: <code>envs/local</code> (data),
+                <code>envs/local-ecs</code> (ECS on floci), <code>envs/aws-dev</code> (real AWS,
+                never applied).
+              </li>
+              <li>
+                <b>Jest</b> + <b>Testcontainers</b>: unit, integration (real Postgres) and
+                end-to-end tests.
+              </li>
+              <li>
+                <b>GitHub Actions</b>: lint, terraform, unit, integration, e2e, smoke, all required
+                on <code>main</code>.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        Drawn from the repository as it is on <code>main</code>:
+        <code>prisma/schema.prisma</code> and its migrations, the
+        <code>CreateAppointment</code> handler, the error classes,
+        <code>docker-compose.yml</code> and <code>infra/</code>. Details live in
+        <code>docs/data-dictionary.md</code>, <code>docs/api.md</code>,
+        <code>docs/design-notes.md</code> and <code>docs/local-dev/</code>.
+      </footer>
+    </div>
+
+    <script>
+      (() => {
+        const tabs = [...document.querySelectorAll('[role="tab"]')];
+        const show = (id, focus) => {
+          tabs.forEach((t) => {
+            const on = t.getAttribute('aria-controls') === id;
+            t.setAttribute('aria-selected', String(on));
+            t.tabIndex = on ? 0 : -1;
+            const panel = document.getElementById(t.getAttribute('aria-controls'));
+            if (panel) panel.hidden = !on;
+            if (on && focus) t.focus();
+          });
+        };
+        tabs.forEach((t, i) => {
+          t.addEventListener('click', () => {
+            const id = t.getAttribute('aria-controls');
+            show(id);
+            try {
+              history.replaceState(null, '', '#' + id);
+            } catch (e) {
+              /* hash not available */
+            }
+          });
+          t.addEventListener('keydown', (e) => {
+            if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+            const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+            show(next.getAttribute('aria-controls'), true);
+          });
+        });
+        const start = (location.hash || '').slice(1);
+        show(['data', 'traffic', 'stack'].includes(start) ? start : 'data');
+      })();
+    </script>
+  </body>
+</html>
