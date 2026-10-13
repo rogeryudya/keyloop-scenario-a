@@ -1,0 +1,44 @@
+# Reference data and availability (FR-7, FR-10).
+# Run with the VS Code "REST Client" extension (humao.rest-client): click "Send Request" above a request.
+# Needs a running API with seed data: `docker compose --profile app up --build` (see README › Try it).
+
+@baseUrl = http://localhost:3000
+# "Tomorrow" in the dealerships' time zone. All three are UTC+7 with no daylight saving, so that's
+# the UTC date of (now + 7 h + 1 day). The seed puts its demo appointments on this day.
+@day = {{$datetime 'YYYY-MM-DD' 31 h}}
+
+@bangkok = 10000000-0000-4000-8000-000000000001
+@hanoi = 10000000-0000-4000-8000-000000000003
+@oilChange = 40000000-0000-4000-8000-000000000001
+@transmission = 40000000-0000-4000-8000-000000000007
+
+### Health: 200 {"status":"ok","db":"up"}
+GET {{baseUrl}}/health
+
+### Dealerships (cursor pagination, newest first)
+GET {{baseUrl}}/v1/dealerships
+
+### Next page: copy meta.nextCursor from the response above
+GET {{baseUrl}}/v1/dealerships?limit=1
+
+### One dealership + the service types it supports (Hanoi: no EV or transmission work, BR-6)
+GET {{baseUrl}}/v1/dealerships/{{hanoi}}
+
+### Service types and durations (end = start + duration, BR-1)
+GET {{baseUrl}}/v1/service-types
+
+### Availability: Bangkok oil changes tomorrow, every 15 minutes from opening (A-9, A-14)
+GET {{baseUrl}}/v1/dealerships/{{bangkok}}/availability?serviceTypeId={{oilChange}}&date={{day}}
+
+### Availability: Hanoi oil changes tomorrow. 10:00 is missing: the only bay is taken by a demo appointment.
+GET {{baseUrl}}/v1/dealerships/{{hanoi}}/availability?serviceTypeId={{oilChange}}&date={{day}}
+
+### Availability: Bangkok transmission repair tomorrow. Decha, the only qualified technician, is busy
+### 09:00-10:30, so on a fresh stack the first start is 10:30 (13:30 once booking scenario 5 has run).
+GET {{baseUrl}}/v1/dealerships/{{bangkok}}/availability?serviceTypeId={{transmission}}&date={{day}}
+
+### Availability for a service Hanoi can't do: 422 SERVICE_TYPE_NOT_SUPPORTED
+GET {{baseUrl}}/v1/dealerships/{{hanoi}}/availability?serviceTypeId={{transmission}}&date={{day}}
+
+### Invalid input: 400 VALIDATION_FAILED with details[] per field
+GET {{baseUrl}}/v1/dealerships/not-a-uuid/availability?serviceTypeId=x&date=tomorrow
