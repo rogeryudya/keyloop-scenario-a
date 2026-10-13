@@ -11,15 +11,28 @@ import { AppointmentMapper } from './appointment.mapper';
 const EXCLUSION_VIOLATION = '23P01';
 /** Only `appointments.idempotency_key` is unique besides the PK, which the app never reuses. */
 const UNIQUE_VIOLATION = 'P2002';
+/** Deadlock (40P01) or serialization failure (40001); Prisma asks the caller to retry. */
+const WRITE_CONFLICT = 'P2034';
 
 /** With the pg driver adapter, the SQLSTATE sits in `meta.driverAdapterError.cause.originalCode`. */
-const isExclusionViolation = (error: unknown): boolean => {
-  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+const isExclusionViolation = (error: Prisma.PrismaClientKnownRequestError): boolean => {
   const adapterError = error.meta?.driverAdapterError;
   if (typeof adapterError !== 'object' || adapterError === null) return false;
   const cause = (adapterError as { cause?: { originalCode?: unknown } }).cause;
   return cause?.originalCode === EXCLUSION_VIOLATION;
 };
+
+/**
+ * A concurrent booking won, and this attempt must be retried in a fresh transaction:
+ * - exclusion violation: an overlapping booking committed first (BR-10);
+ * - unique violation: a request with the same Idempotency-Key committed first (FR-11);
+ * - write conflict: Postgres aborted this transaction to break a deadlock. Exclusion constraints
+ *   check after inserting, so two inserts racing for the same bay or technician can wait on each
+ *   other; Postgres kills one, and the retry sees the survivor's result.
+ */
+export const isLostBookingRace = (error: unknown): boolean =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  (isExclusionViolation(error) || error.code === UNIQUE_VIOLATION || error.code === WRITE_CONFLICT);
 
 @Injectable()
 export class PrismaAppointmentRepository extends AppointmentRepository {
@@ -36,15 +49,8 @@ export class PrismaAppointmentRepository extends AppointmentRepository {
         update: { status: data.status, cancelledAt: data.cancelledAt },
       });
     } catch (error) {
-      // BR-10: a concurrent booking committed first; the exclusion constraint is the last line of defence.
-      if (isExclusionViolation(error)) throw new AppointmentConflictError();
-      // FR-11: a concurrent request with the same Idempotency-Key committed first; the retry replays it.
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === UNIQUE_VIOLATION
-      ) {
-        throw new AppointmentConflictError();
-      }
+      // The DB constraints are the last line of defence (BR-10, FR-11); the handler retries.
+      if (isLostBookingRace(error)) throw new AppointmentConflictError();
       throw error;
     }
   }
