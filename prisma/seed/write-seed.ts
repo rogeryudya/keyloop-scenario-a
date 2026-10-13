@@ -4,6 +4,10 @@ import { SeedPlan } from './seed-plan';
 /**
  * Upserts every row by id in one transaction, parents before children. Idempotent: a second run
  * rewrites the same values, except demo appointments, which move to the new "tomorrow".
+ *
+ * Demo appointments are deleted and re-inserted rather than upserted. Moving them one by one would trip
+ * the exclusion constraints: a day-1 booking moving onto day 2 can overlap a day-2 booking on the same
+ * bay that hasn't moved yet. Inside the transaction no other connection sees them missing.
  */
 export async function writeSeed(prisma: PrismaClient, plan: SeedPlan): Promise<void> {
   await prisma.$transaction(async (tx) => {
@@ -29,8 +33,7 @@ export async function writeSeed(prisma: PrismaClient, plan: SeedPlan): Promise<v
     for (const { id, ...data } of plan.vehicles) {
       await tx.vehicle.upsert({ where: { id }, create: { id, ...data }, update: data });
     }
-    for (const { id, ...data } of plan.appointments) {
-      await tx.appointment.upsert({ where: { id }, create: { id, ...data }, update: data });
-    }
+    await tx.appointment.deleteMany({ where: { id: { in: plan.appointments.map((a) => a.id) } } });
+    await tx.appointment.createMany({ data: [...plan.appointments] });
   });
 }

@@ -20,71 +20,649 @@
       "timeZone": "Asia/Ho_Chi_Minh",
       "opensAt": "09:00",
       "closesAt": "17:00"
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000004",
+      "name": "Keyloop Motors Chiang Mai",
+      "timeZone": "Asia/Bangkok",
+      "opensAt": "08:30",
+      "closesAt": "17:30"
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000005",
+      "name": "Keyloop Motors Da Nang",
+      "timeZone": "Asia/Ho_Chi_Minh",
+      "opensAt": "07:30",
+      "closesAt": "16:30"
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000006",
+      "name": "Keyloop Express Phuket",
+      "timeZone": "Asia/Bangkok",
+      "opensAt": "10:00",
+      "closesAt": "19:00"
     }
   ],
-
   "serviceBays": [
-    { "id": "20000000-0000-4000-8000-000000000101", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Bay 1" },
-    { "id": "20000000-0000-4000-8000-000000000102", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Bay 2" },
-    { "id": "20000000-0000-4000-8000-000000000103", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Bay 3" },
-    { "id": "20000000-0000-4000-8000-000000000201", "dealershipId": "10000000-0000-4000-8000-000000000002", "name": "Bay A" },
-    { "id": "20000000-0000-4000-8000-000000000202", "dealershipId": "10000000-0000-4000-8000-000000000002", "name": "Bay B" },
-    { "id": "20000000-0000-4000-8000-000000000301", "dealershipId": "10000000-0000-4000-8000-000000000003", "name": "Express Bay" }
+    {
+      "id": "20000000-0000-4000-8000-000000000101",
+      "dealershipId": "10000000-0000-4000-8000-000000000001",
+      "name": "Bay 1"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000102",
+      "dealershipId": "10000000-0000-4000-8000-000000000001",
+      "name": "Bay 2"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000103",
+      "dealershipId": "10000000-0000-4000-8000-000000000001",
+      "name": "Bay 3"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000201",
+      "dealershipId": "10000000-0000-4000-8000-000000000002",
+      "name": "Bay A"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000202",
+      "dealershipId": "10000000-0000-4000-8000-000000000002",
+      "name": "Bay B"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000301",
+      "dealershipId": "10000000-0000-4000-8000-000000000003",
+      "name": "Express Bay"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000401",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "name": "Bay 1"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000402",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "name": "Bay 2"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000501",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "name": "Bay A"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000502",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "name": "Bay B"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000503",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "name": "Bay C"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000601",
+      "dealershipId": "10000000-0000-4000-8000-000000000006",
+      "name": "Express Bay"
+    }
   ],
-
   "serviceTypes": [
-    { "id": "40000000-0000-4000-8000-000000000001", "code": "OIL_CHANGE",          "name": "Oil and filter change",   "durationMinutes": 30 },
-    { "id": "40000000-0000-4000-8000-000000000002", "code": "TYRE_ROTATION",       "name": "Tyre rotation",           "durationMinutes": 45 },
-    { "id": "40000000-0000-4000-8000-000000000003", "code": "BRAKE_SERVICE",       "name": "Brake service",           "durationMinutes": 90 },
-    { "id": "40000000-0000-4000-8000-000000000004", "code": "ANNUAL_SERVICE",      "name": "Annual service",          "durationMinutes": 120 },
-    { "id": "40000000-0000-4000-8000-000000000005", "code": "EV_BATTERY_CHECK",    "name": "EV battery health check", "durationMinutes": 60 },
-    { "id": "40000000-0000-4000-8000-000000000006", "code": "DIAGNOSTICS",         "name": "Engine diagnostics",      "durationMinutes": 60 },
-    { "id": "40000000-0000-4000-8000-000000000007", "code": "TRANSMISSION_REPAIR", "name": "Transmission repair",     "durationMinutes": 180 }
+    {
+      "id": "40000000-0000-4000-8000-000000000001",
+      "code": "OIL_CHANGE",
+      "name": "Oil and filter change",
+      "durationMinutes": 30
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000002",
+      "code": "TYRE_ROTATION",
+      "name": "Tyre rotation",
+      "durationMinutes": 45
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000003",
+      "code": "BRAKE_SERVICE",
+      "name": "Brake service",
+      "durationMinutes": 90
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000004",
+      "code": "ANNUAL_SERVICE",
+      "name": "Annual service",
+      "durationMinutes": 120
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000005",
+      "code": "EV_BATTERY_CHECK",
+      "name": "EV battery health check",
+      "durationMinutes": 60
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000006",
+      "code": "DIAGNOSTICS",
+      "name": "Engine diagnostics",
+      "durationMinutes": 60
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000007",
+      "code": "TRANSMISSION_REPAIR",
+      "name": "Transmission repair",
+      "durationMinutes": 180
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000008",
+      "code": "AIR_CONDITIONING",
+      "name": "Air-conditioning service",
+      "durationMinutes": 60
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000009",
+      "code": "WHEEL_ALIGNMENT",
+      "name": "Wheel alignment",
+      "durationMinutes": 45
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000010",
+      "code": "PRE_PURCHASE_INSPECTION",
+      "name": "Pre-purchase inspection",
+      "durationMinutes": 90
+    }
   ],
-
   "technicians": [
-    { "id": "30000000-0000-4000-8000-000000000101", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Anong Srisuk",
-      "qualifications": ["OIL_CHANGE", "TYRE_ROTATION", "BRAKE_SERVICE", "ANNUAL_SERVICE"] },
-    { "id": "30000000-0000-4000-8000-000000000102", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Boonsong Chaiwat",
-      "qualifications": ["OIL_CHANGE", "TYRE_ROTATION", "DIAGNOSTICS"] },
-    { "id": "30000000-0000-4000-8000-000000000103", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Chanida Rattanakul",
-      "qualifications": ["EV_BATTERY_CHECK", "DIAGNOSTICS", "ANNUAL_SERVICE"] },
-    { "id": "30000000-0000-4000-8000-000000000104", "dealershipId": "10000000-0000-4000-8000-000000000001", "name": "Decha Phongsri",
-      "qualifications": ["BRAKE_SERVICE", "ANNUAL_SERVICE", "TRANSMISSION_REPAIR"] },
-
-    { "id": "30000000-0000-4000-8000-000000000201", "dealershipId": "10000000-0000-4000-8000-000000000002", "name": "Nguyen Van An",
-      "qualifications": ["OIL_CHANGE", "TYRE_ROTATION", "BRAKE_SERVICE"] },
-    { "id": "30000000-0000-4000-8000-000000000202", "dealershipId": "10000000-0000-4000-8000-000000000002", "name": "Tran Thi Binh",
-      "qualifications": ["ANNUAL_SERVICE", "DIAGNOSTICS", "EV_BATTERY_CHECK"] },
-    { "id": "30000000-0000-4000-8000-000000000203", "dealershipId": "10000000-0000-4000-8000-000000000002", "name": "Le Minh Chau",
-      "qualifications": ["OIL_CHANGE", "TYRE_ROTATION", "ANNUAL_SERVICE"] },
-
-    { "id": "30000000-0000-4000-8000-000000000301", "dealershipId": "10000000-0000-4000-8000-000000000003", "name": "Pham Thu Ha",
-      "qualifications": ["OIL_CHANGE", "TYRE_ROTATION"] },
-    { "id": "30000000-0000-4000-8000-000000000302", "dealershipId": "10000000-0000-4000-8000-000000000003", "name": "Vu Duc Khoa",
-      "qualifications": ["OIL_CHANGE", "BRAKE_SERVICE", "DIAGNOSTICS"] }
+    {
+      "id": "30000000-0000-4000-8000-000000000101",
+      "dealershipId": "10000000-0000-4000-8000-000000000001",
+      "name": "Anong Srisuk",
+      "qualifications": [
+        "OIL_CHANGE",
+        "TYRE_ROTATION",
+        "BRAKE_SERVICE",
+        "ANNUAL_SERVICE"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000102",
+      "dealershipId": "10000000-0000-4000-8000-000000000001",
+      "name": "Boonsong Chaiwat",
+      "qualifications": [
+        "OIL_CHANGE",
+        "TYRE_ROTATION",
+        "DIAGNOSTICS"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000103",
+      "dealershipId": "10000000-0000-4000-8000-000000000001",
+      "name": "Chanida Rattanakul",
+      "qualifications": [
+        "EV_BATTERY_CHECK",
+        "DIAGNOSTICS",
+        "ANNUAL_SERVICE"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000104",
+      "dealershipId": "10000000-0000-4000-8000-000000000001",
+      "name": "Decha Phongsri",
+      "qualifications": [
+        "BRAKE_SERVICE",
+        "ANNUAL_SERVICE",
+        "TRANSMISSION_REPAIR"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000201",
+      "dealershipId": "10000000-0000-4000-8000-000000000002",
+      "name": "Nguyen Van An",
+      "qualifications": [
+        "OIL_CHANGE",
+        "TYRE_ROTATION",
+        "BRAKE_SERVICE"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000202",
+      "dealershipId": "10000000-0000-4000-8000-000000000002",
+      "name": "Tran Thi Binh",
+      "qualifications": [
+        "ANNUAL_SERVICE",
+        "DIAGNOSTICS",
+        "EV_BATTERY_CHECK"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000203",
+      "dealershipId": "10000000-0000-4000-8000-000000000002",
+      "name": "Le Minh Chau",
+      "qualifications": [
+        "OIL_CHANGE",
+        "TYRE_ROTATION",
+        "ANNUAL_SERVICE"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000301",
+      "dealershipId": "10000000-0000-4000-8000-000000000003",
+      "name": "Pham Thu Ha",
+      "qualifications": [
+        "OIL_CHANGE",
+        "TYRE_ROTATION"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000302",
+      "dealershipId": "10000000-0000-4000-8000-000000000003",
+      "name": "Vu Duc Khoa",
+      "qualifications": [
+        "OIL_CHANGE",
+        "BRAKE_SERVICE",
+        "DIAGNOSTICS"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000401",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "name": "Kittipong Saelee",
+      "qualifications": [
+        "OIL_CHANGE",
+        "TYRE_ROTATION",
+        "WHEEL_ALIGNMENT"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000402",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "name": "Siriporn Thongdee",
+      "qualifications": [
+        "AIR_CONDITIONING",
+        "DIAGNOSTICS",
+        "EV_BATTERY_CHECK"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000403",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "name": "Wichai Boonmee",
+      "qualifications": [
+        "BRAKE_SERVICE",
+        "ANNUAL_SERVICE",
+        "PRE_PURCHASE_INSPECTION"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000501",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "name": "Hoang Van Duc",
+      "qualifications": [
+        "OIL_CHANGE",
+        "TYRE_ROTATION",
+        "BRAKE_SERVICE"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000502",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "name": "Nguyen Thi Mai",
+      "qualifications": [
+        "AIR_CONDITIONING",
+        "DIAGNOSTICS",
+        "ANNUAL_SERVICE"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000503",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "name": "Phan Quoc Bao",
+      "qualifications": [
+        "WHEEL_ALIGNMENT",
+        "TYRE_ROTATION",
+        "PRE_PURCHASE_INSPECTION"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000504",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "name": "Do Thanh Long",
+      "qualifications": [
+        "EV_BATTERY_CHECK",
+        "DIAGNOSTICS",
+        "TRANSMISSION_REPAIR"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000601",
+      "dealershipId": "10000000-0000-4000-8000-000000000006",
+      "name": "Somchai Kaewmanee",
+      "qualifications": [
+        "OIL_CHANGE",
+        "AIR_CONDITIONING",
+        "TYRE_ROTATION"
+      ]
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000602",
+      "dealershipId": "10000000-0000-4000-8000-000000000006",
+      "name": "Pranee Sukprasert",
+      "qualifications": [
+        "OIL_CHANGE",
+        "WHEEL_ALIGNMENT",
+        "DIAGNOSTICS"
+      ]
+    }
   ],
-
   "customers": [
-    { "id": "50000000-0000-4000-8000-000000000001", "firstName": "Somsak",  "lastName": "Jaidee",   "email": "somsak.jaidee@example.com",  "phone": "+66 81 000 0001" },
-    { "id": "50000000-0000-4000-8000-000000000002", "firstName": "Malee",   "lastName": "Sukjai",   "email": "malee.sukjai@example.com",   "phone": "+66 81 000 0002" },
-    { "id": "50000000-0000-4000-8000-000000000003", "firstName": "Prasit",  "lastName": "Wongchai", "email": "prasit.wongchai@example.com", "phone": "+66 81 000 0003" },
-    { "id": "50000000-0000-4000-8000-000000000004", "firstName": "Lan",     "lastName": "Nguyen",   "email": "lan.nguyen@example.com",     "phone": "+84 90 000 0004" },
-    { "id": "50000000-0000-4000-8000-000000000005", "firstName": "Huy",     "lastName": "Tran",     "email": "huy.tran@example.com",       "phone": "+84 90 000 0005" },
-    { "id": "50000000-0000-4000-8000-000000000006", "firstName": "Tuan",    "lastName": "Pham",     "email": "tuan.pham@example.com",      "phone": "+84 90 000 0006" }
+    {
+      "id": "50000000-0000-4000-8000-000000000001",
+      "firstName": "Somsak",
+      "lastName": "Jaidee",
+      "email": "somsak.jaidee@example.com",
+      "phone": "+66 81 000 0001"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000002",
+      "firstName": "Malee",
+      "lastName": "Sukjai",
+      "email": "malee.sukjai@example.com",
+      "phone": "+66 81 000 0002"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000003",
+      "firstName": "Prasit",
+      "lastName": "Wongchai",
+      "email": "prasit.wongchai@example.com",
+      "phone": "+66 81 000 0003"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000004",
+      "firstName": "Lan",
+      "lastName": "Nguyen",
+      "email": "lan.nguyen@example.com",
+      "phone": "+84 90 000 0004"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000005",
+      "firstName": "Huy",
+      "lastName": "Tran",
+      "email": "huy.tran@example.com",
+      "phone": "+84 90 000 0005"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000006",
+      "firstName": "Tuan",
+      "lastName": "Pham",
+      "email": "tuan.pham@example.com",
+      "phone": "+84 90 000 0006"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000007",
+      "firstName": "Narong",
+      "lastName": "Chaiyaporn",
+      "email": "narong.chaiyaporn@example.com",
+      "phone": "+66 81 000 0007"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000008",
+      "firstName": "Supaporn",
+      "lastName": "Wongsa",
+      "email": "supaporn.wongsa@example.com",
+      "phone": "+66 81 000 0008"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000009",
+      "firstName": "Anan",
+      "lastName": "Srisawat",
+      "email": "anan.srisawat@example.com",
+      "phone": "+66 81 000 0009"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000010",
+      "firstName": "Kanya",
+      "lastName": "Rattanapong",
+      "email": "kanya.rattanapong@example.com",
+      "phone": "+66 81 000 0010"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000011",
+      "firstName": "Pattama",
+      "lastName": "Inthong",
+      "email": "pattama.inthong@example.com",
+      "phone": "+66 81 000 0011"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000012",
+      "firstName": "Minh",
+      "lastName": "Le",
+      "email": "minh.le@example.com",
+      "phone": "+84 90 000 0012"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000013",
+      "firstName": "Thu",
+      "lastName": "Hoang",
+      "email": "thu.hoang@example.com",
+      "phone": "+84 90 000 0013"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000014",
+      "firstName": "Quang",
+      "lastName": "Vo",
+      "email": "quang.vo@example.com",
+      "phone": "+84 90 000 0014"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000015",
+      "firstName": "Linh",
+      "lastName": "Dang",
+      "email": "linh.dang@example.com",
+      "phone": "+84 90 000 0015"
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000016",
+      "firstName": "Bao",
+      "lastName": "Bui",
+      "email": "bao.bui@example.com",
+      "phone": "+84 90 000 0016"
+    }
   ],
-
   "vehicles": [
-    { "id": "60000000-0000-4000-8000-000000000001", "customerId": "50000000-0000-4000-8000-000000000001", "vin": "MR053REE7K0123456", "registration": "1กข 2345",   "make": "Toyota",  "model": "Corolla Altis", "year": 2019 },
-    { "id": "60000000-0000-4000-8000-000000000002", "customerId": "50000000-0000-4000-8000-000000000001", "vin": "5YJ3E1EA7NF123457", "registration": "9กก 9999",   "make": "Tesla",   "model": "Model 3",       "year": 2022 },
-    { "id": "60000000-0000-4000-8000-000000000003", "customerId": "50000000-0000-4000-8000-000000000002", "vin": "MRHGM6640JP123458", "registration": "2ขค 6789",   "make": "Honda",   "model": "City",          "year": 2018 },
-    { "id": "60000000-0000-4000-8000-000000000004", "customerId": "50000000-0000-4000-8000-000000000003", "vin": "WBA8E1C50LK123459", "registration": "3คง 1122",   "make": "BMW",     "model": "320d",          "year": 2020 },
-    { "id": "60000000-0000-4000-8000-000000000005", "customerId": "50000000-0000-4000-8000-000000000004", "vin": "RLLV8AE20PH123460", "registration": "51K-123.45", "make": "VinFast", "model": "VF 8",          "year": 2023 },
-    { "id": "60000000-0000-4000-8000-000000000006", "customerId": "50000000-0000-4000-8000-000000000004", "vin": "RL4BT9F38H0123461", "registration": "51A-678.90", "make": "Toyota",  "model": "Vios",          "year": 2017 },
-    { "id": "60000000-0000-4000-8000-000000000007", "customerId": "50000000-0000-4000-8000-000000000005", "vin": "RP8KF2W67M0123462", "registration": "51G-246.80", "make": "Mazda",   "model": "CX-5",          "year": 2021 },
-    { "id": "60000000-0000-4000-8000-000000000008", "customerId": "50000000-0000-4000-8000-000000000006", "vin": "RLUAA51CPG0123463", "registration": "30A-135.79", "make": "Hyundai", "model": "Accent",        "year": 2016 }
+    {
+      "id": "60000000-0000-4000-8000-000000000001",
+      "customerId": "50000000-0000-4000-8000-000000000001",
+      "vin": "MR053REE7K0123456",
+      "registration": "1กข 2345",
+      "make": "Toyota",
+      "model": "Corolla Altis",
+      "year": 2019
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000002",
+      "customerId": "50000000-0000-4000-8000-000000000001",
+      "vin": "5YJ3E1EA7NF123457",
+      "registration": "9กก 9999",
+      "make": "Tesla",
+      "model": "Model 3",
+      "year": 2022
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000003",
+      "customerId": "50000000-0000-4000-8000-000000000002",
+      "vin": "MRHGM6640JP123458",
+      "registration": "2ขค 6789",
+      "make": "Honda",
+      "model": "City",
+      "year": 2018
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000004",
+      "customerId": "50000000-0000-4000-8000-000000000003",
+      "vin": "WBA8E1C50LK123459",
+      "registration": "3คง 1122",
+      "make": "BMW",
+      "model": "320d",
+      "year": 2020
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000005",
+      "customerId": "50000000-0000-4000-8000-000000000004",
+      "vin": "RLLV8AE20PH123460",
+      "registration": "51K-123.45",
+      "make": "VinFast",
+      "model": "VF 8",
+      "year": 2023
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000006",
+      "customerId": "50000000-0000-4000-8000-000000000004",
+      "vin": "RL4BT9F38H0123461",
+      "registration": "51A-678.90",
+      "make": "Toyota",
+      "model": "Vios",
+      "year": 2017
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000007",
+      "customerId": "50000000-0000-4000-8000-000000000005",
+      "vin": "RP8KF2W67M0123462",
+      "registration": "51G-246.80",
+      "make": "Mazda",
+      "model": "CX-5",
+      "year": 2021
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000008",
+      "customerId": "50000000-0000-4000-8000-000000000006",
+      "vin": "RLUAA51CPG0123463",
+      "registration": "30A-135.79",
+      "make": "Hyundai",
+      "model": "Accent",
+      "year": 2016
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000009",
+      "customerId": "50000000-0000-4000-8000-000000000007",
+      "vin": "MR0HA3CD5M0123464",
+      "registration": "บธ 4521",
+      "make": "Toyota",
+      "model": "Hilux Revo",
+      "year": 2021
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000010",
+      "customerId": "50000000-0000-4000-8000-000000000007",
+      "vin": "LGXCE4CB8R0123465",
+      "registration": "7กข 8810",
+      "make": "BYD",
+      "model": "Atto 3",
+      "year": 2024
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000011",
+      "customerId": "50000000-0000-4000-8000-000000000008",
+      "vin": "MRHFC1650L0123466",
+      "registration": "3กษ 1199",
+      "make": "Honda",
+      "model": "Civic",
+      "year": 2020
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000012",
+      "customerId": "50000000-0000-4000-8000-000000000009",
+      "vin": "MP2TFS40JK0123467",
+      "registration": "ผร 7702",
+      "make": "Isuzu",
+      "model": "D-Max",
+      "year": 2019
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000013",
+      "customerId": "50000000-0000-4000-8000-000000000009",
+      "vin": "MM0DL2W76N0123468",
+      "registration": "4ขค 3355",
+      "make": "Mazda",
+      "model": "2",
+      "year": 2022
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000014",
+      "customerId": "50000000-0000-4000-8000-000000000010",
+      "vin": "MNTBC4N18P0123469",
+      "registration": "2กร 6040",
+      "make": "Nissan",
+      "model": "Almera",
+      "year": 2023
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000015",
+      "customerId": "50000000-0000-4000-8000-000000000011",
+      "vin": "MMBXNXR43N0123470",
+      "registration": "6กน 2408",
+      "make": "Mitsubishi",
+      "model": "Xpander",
+      "year": 2022
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000016",
+      "customerId": "50000000-0000-4000-8000-000000000012",
+      "vin": "MNAUMFF50L0123471",
+      "registration": "43A-512.34",
+      "make": "Ford",
+      "model": "Ranger",
+      "year": 2020
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000017",
+      "customerId": "50000000-0000-4000-8000-000000000012",
+      "vin": "RLLV5EAC2P0123472",
+      "registration": "43A-777.21",
+      "make": "VinFast",
+      "model": "VF e34",
+      "year": 2023
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000018",
+      "customerId": "50000000-0000-4000-8000-000000000013",
+      "vin": "KNABE511AJ0123473",
+      "registration": "43A-208.66",
+      "make": "Kia",
+      "model": "Morning",
+      "year": 2018
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000019",
+      "customerId": "50000000-0000-4000-8000-000000000014",
+      "vin": "MHFAA8GS2K0123474",
+      "registration": "43B-019.88",
+      "make": "Toyota",
+      "model": "Innova",
+      "year": 2019
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000020",
+      "customerId": "50000000-0000-4000-8000-000000000014",
+      "vin": "MRHRV6830P0123475",
+      "registration": "43A-930.15",
+      "make": "Honda",
+      "model": "HR-V",
+      "year": 2023
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000021",
+      "customerId": "50000000-0000-4000-8000-000000000015",
+      "vin": "JM7DM2W7XN0123476",
+      "registration": "43A-644.02",
+      "make": "Mazda",
+      "model": "CX-30",
+      "year": 2022
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000000022",
+      "customerId": "50000000-0000-4000-8000-000000000016",
+      "vin": "KMHJ381ABM0123477",
+      "registration": "43A-385.57",
+      "make": "Hyundai",
+      "model": "Tucson",
+      "year": 2021
+    }
   ],
-
   "demoAppointments": [
     {
       "id": "70000000-0000-4000-8000-000000000001",
@@ -122,6 +700,239 @@
       "dayOffset": 1,
       "localStart": "14:00",
       "status": "CANCELLED"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000004",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "serviceBayId": "20000000-0000-4000-8000-000000000401",
+      "technicianId": "30000000-0000-4000-8000-000000000401",
+      "serviceTypeCode": "OIL_CHANGE",
+      "customerId": "50000000-0000-4000-8000-000000000007",
+      "vehicleId": "60000000-0000-4000-8000-000000000009",
+      "dayOffset": 1,
+      "localStart": "08:30"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000005",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "serviceBayId": "20000000-0000-4000-8000-000000000402",
+      "technicianId": "30000000-0000-4000-8000-000000000402",
+      "serviceTypeCode": "AIR_CONDITIONING",
+      "customerId": "50000000-0000-4000-8000-000000000008",
+      "vehicleId": "60000000-0000-4000-8000-000000000011",
+      "dayOffset": 1,
+      "localStart": "09:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000006",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "serviceBayId": "20000000-0000-4000-8000-000000000401",
+      "technicianId": "30000000-0000-4000-8000-000000000401",
+      "serviceTypeCode": "WHEEL_ALIGNMENT",
+      "customerId": "50000000-0000-4000-8000-000000000009",
+      "vehicleId": "60000000-0000-4000-8000-000000000012",
+      "dayOffset": 1,
+      "localStart": "09:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000007",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "serviceBayId": "20000000-0000-4000-8000-000000000401",
+      "technicianId": "30000000-0000-4000-8000-000000000403",
+      "serviceTypeCode": "ANNUAL_SERVICE",
+      "customerId": "50000000-0000-4000-8000-000000000010",
+      "vehicleId": "60000000-0000-4000-8000-000000000014",
+      "dayOffset": 1,
+      "localStart": "10:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000008",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "serviceBayId": "20000000-0000-4000-8000-000000000402",
+      "technicianId": "30000000-0000-4000-8000-000000000403",
+      "serviceTypeCode": "PRE_PURCHASE_INSPECTION",
+      "customerId": "50000000-0000-4000-8000-000000000011",
+      "vehicleId": "60000000-0000-4000-8000-000000000015",
+      "dayOffset": 1,
+      "localStart": "13:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000009",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "serviceBayId": "20000000-0000-4000-8000-000000000401",
+      "technicianId": "30000000-0000-4000-8000-000000000402",
+      "serviceTypeCode": "DIAGNOSTICS",
+      "customerId": "50000000-0000-4000-8000-000000000007",
+      "vehicleId": "60000000-0000-4000-8000-000000000010",
+      "dayOffset": 1,
+      "localStart": "14:00",
+      "status": "CANCELLED"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000010",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "serviceBayId": "20000000-0000-4000-8000-000000000401",
+      "technicianId": "30000000-0000-4000-8000-000000000403",
+      "serviceTypeCode": "BRAKE_SERVICE",
+      "customerId": "50000000-0000-4000-8000-000000000009",
+      "vehicleId": "60000000-0000-4000-8000-000000000013",
+      "dayOffset": 2,
+      "localStart": "08:30"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000011",
+      "dealershipId": "10000000-0000-4000-8000-000000000004",
+      "serviceBayId": "20000000-0000-4000-8000-000000000402",
+      "technicianId": "30000000-0000-4000-8000-000000000402",
+      "serviceTypeCode": "EV_BATTERY_CHECK",
+      "customerId": "50000000-0000-4000-8000-000000000007",
+      "vehicleId": "60000000-0000-4000-8000-000000000010",
+      "dayOffset": 2,
+      "localStart": "11:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000012",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "serviceBayId": "20000000-0000-4000-8000-000000000501",
+      "technicianId": "30000000-0000-4000-8000-000000000504",
+      "serviceTypeCode": "TRANSMISSION_REPAIR",
+      "customerId": "50000000-0000-4000-8000-000000000012",
+      "vehicleId": "60000000-0000-4000-8000-000000000016",
+      "dayOffset": 1,
+      "localStart": "07:30"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000013",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "serviceBayId": "20000000-0000-4000-8000-000000000502",
+      "technicianId": "30000000-0000-4000-8000-000000000501",
+      "serviceTypeCode": "OIL_CHANGE",
+      "customerId": "50000000-0000-4000-8000-000000000013",
+      "vehicleId": "60000000-0000-4000-8000-000000000018",
+      "dayOffset": 1,
+      "localStart": "08:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000014",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "serviceBayId": "20000000-0000-4000-8000-000000000503",
+      "technicianId": "30000000-0000-4000-8000-000000000502",
+      "serviceTypeCode": "AIR_CONDITIONING",
+      "customerId": "50000000-0000-4000-8000-000000000014",
+      "vehicleId": "60000000-0000-4000-8000-000000000019",
+      "dayOffset": 1,
+      "localStart": "08:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000015",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "serviceBayId": "20000000-0000-4000-8000-000000000502",
+      "technicianId": "30000000-0000-4000-8000-000000000503",
+      "serviceTypeCode": "WHEEL_ALIGNMENT",
+      "customerId": "50000000-0000-4000-8000-000000000015",
+      "vehicleId": "60000000-0000-4000-8000-000000000021",
+      "dayOffset": 1,
+      "localStart": "09:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000016",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "serviceBayId": "20000000-0000-4000-8000-000000000501",
+      "technicianId": "30000000-0000-4000-8000-000000000501",
+      "serviceTypeCode": "TYRE_ROTATION",
+      "customerId": "50000000-0000-4000-8000-000000000014",
+      "vehicleId": "60000000-0000-4000-8000-000000000020",
+      "dayOffset": 1,
+      "localStart": "10:30"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000017",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "serviceBayId": "20000000-0000-4000-8000-000000000503",
+      "technicianId": "30000000-0000-4000-8000-000000000502",
+      "serviceTypeCode": "ANNUAL_SERVICE",
+      "customerId": "50000000-0000-4000-8000-000000000016",
+      "vehicleId": "60000000-0000-4000-8000-000000000022",
+      "dayOffset": 1,
+      "localStart": "13:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000018",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "serviceBayId": "20000000-0000-4000-8000-000000000501",
+      "technicianId": "30000000-0000-4000-8000-000000000504",
+      "serviceTypeCode": "EV_BATTERY_CHECK",
+      "customerId": "50000000-0000-4000-8000-000000000012",
+      "vehicleId": "60000000-0000-4000-8000-000000000017",
+      "dayOffset": 1,
+      "localStart": "14:00",
+      "status": "CANCELLED"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000019",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "serviceBayId": "20000000-0000-4000-8000-000000000502",
+      "technicianId": "30000000-0000-4000-8000-000000000503",
+      "serviceTypeCode": "PRE_PURCHASE_INSPECTION",
+      "customerId": "50000000-0000-4000-8000-000000000013",
+      "vehicleId": "60000000-0000-4000-8000-000000000018",
+      "dayOffset": 3,
+      "localStart": "09:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000020",
+      "dealershipId": "10000000-0000-4000-8000-000000000005",
+      "serviceBayId": "20000000-0000-4000-8000-000000000501",
+      "technicianId": "30000000-0000-4000-8000-000000000501",
+      "serviceTypeCode": "BRAKE_SERVICE",
+      "customerId": "50000000-0000-4000-8000-000000000015",
+      "vehicleId": "60000000-0000-4000-8000-000000000021",
+      "dayOffset": 3,
+      "localStart": "15:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000021",
+      "dealershipId": "10000000-0000-4000-8000-000000000006",
+      "serviceBayId": "20000000-0000-4000-8000-000000000601",
+      "technicianId": "30000000-0000-4000-8000-000000000601",
+      "serviceTypeCode": "AIR_CONDITIONING",
+      "customerId": "50000000-0000-4000-8000-000000000008",
+      "vehicleId": "60000000-0000-4000-8000-000000000011",
+      "dayOffset": 1,
+      "localStart": "10:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000022",
+      "dealershipId": "10000000-0000-4000-8000-000000000006",
+      "serviceBayId": "20000000-0000-4000-8000-000000000601",
+      "technicianId": "30000000-0000-4000-8000-000000000602",
+      "serviceTypeCode": "OIL_CHANGE",
+      "customerId": "50000000-0000-4000-8000-000000000010",
+      "vehicleId": "60000000-0000-4000-8000-000000000014",
+      "dayOffset": 1,
+      "localStart": "11:00"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000023",
+      "dealershipId": "10000000-0000-4000-8000-000000000006",
+      "serviceBayId": "20000000-0000-4000-8000-000000000601",
+      "technicianId": "30000000-0000-4000-8000-000000000602",
+      "serviceTypeCode": "DIAGNOSTICS",
+      "customerId": "50000000-0000-4000-8000-000000000011",
+      "vehicleId": "60000000-0000-4000-8000-000000000015",
+      "dayOffset": 1,
+      "localStart": "17:30"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000024",
+      "dealershipId": "10000000-0000-4000-8000-000000000006",
+      "serviceBayId": "20000000-0000-4000-8000-000000000601",
+      "technicianId": "30000000-0000-4000-8000-000000000602",
+      "serviceTypeCode": "WHEEL_ALIGNMENT",
+      "customerId": "50000000-0000-4000-8000-000000000009",
+      "vehicleId": "60000000-0000-4000-8000-000000000012",
+      "dayOffset": 2,
+      "localStart": "18:00"
     }
   ]
 }

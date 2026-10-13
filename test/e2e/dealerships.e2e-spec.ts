@@ -55,7 +55,7 @@ describe('Dealerships and service types (e2e)', () => {
       const body = res.body as PageJson<DealershipJson>;
 
       expect(body.meta).toEqual({ nextCursor: null, limit: 20 });
-      expect(body.data).toHaveLength(3);
+      expect(body.data).toHaveLength(data.dealerships.length);
       expect(body.data).toContainEqual({
         id: BANGKOK,
         name: 'Keyloop Motors Bangkok',
@@ -65,23 +65,23 @@ describe('Dealerships and service types (e2e)', () => {
     });
 
     it('pages with limit and nextCursor', async () => {
-      const first = (await http().get('/v1/dealerships?limit=2').expect(200))
+      const first = (await http().get('/v1/dealerships?limit=4').expect(200))
         .body as PageJson<DealershipJson>;
-      expect(first.data).toHaveLength(2);
-      expect(first.meta.limit).toBe(2);
+      expect(first.data).toHaveLength(4);
+      expect(first.meta.limit).toBe(4);
       expect(first.meta.nextCursor).toEqual(expect.any(String));
 
       const second = (
         await http()
           .get('/v1/dealerships')
-          .query({ limit: 2, cursor: first.meta.nextCursor })
+          .query({ limit: 4, cursor: first.meta.nextCursor })
           .expect(200)
       ).body as PageJson<DealershipJson>;
 
-      expect(second.data).toHaveLength(1);
+      expect(second.data).toHaveLength(data.dealerships.length - 4);
       expect(second.meta.nextCursor).toBeNull();
       const ids = [...first.data, ...second.data].map((d) => d.id);
-      expect(new Set(ids).size).toBe(3);
+      expect(new Set(ids).size).toBe(data.dealerships.length);
     });
 
     it.each(['0', '101', 'abc'])('rejects limit=%s with VALIDATION_FAILED', async (limit) => {
@@ -139,7 +139,7 @@ describe('Dealerships and service types (e2e)', () => {
       const res = await http().get('/v1/service-types').expect(200);
       const body = res.body as PageJson<ServiceTypeJson>;
 
-      expect(body.data).toHaveLength(7);
+      expect(body.data).toHaveLength(data.serviceTypes.length);
       expect(body.data).toContainEqual({
         id: '40000000-0000-4000-8000-000000000001',
         code: 'OIL_CHANGE',

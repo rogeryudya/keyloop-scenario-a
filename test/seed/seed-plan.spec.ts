@@ -30,10 +30,10 @@ describe('buildSeedPlan', () => {
   it('accepts the shipped data.json', () => {
     const plan = buildSeedPlan(data, NOW);
 
-    expect(plan.dealerships).toHaveLength(3);
-    expect(plan.serviceBays).toHaveLength(6);
-    expect(plan.technicians).toHaveLength(9);
-    expect(plan.appointments).toHaveLength(3);
+    expect(plan.dealerships).toHaveLength(6);
+    expect(plan.serviceBays).toHaveLength(12);
+    expect(plan.technicians).toHaveLength(18);
+    expect(plan.appointments).toHaveLength(24);
   });
 
   it('resolves qualification codes to service type ids', () => {
@@ -43,7 +43,7 @@ describe('buildSeedPlan', () => {
       technicianId: '30000000-0000-4000-8000-000000000104',
       serviceTypeId: '40000000-0000-4000-8000-000000000007', // TRANSMISSION_REPAIR
     });
-    expect(plan.qualifications).toHaveLength(27);
+    expect(plan.qualifications).toHaveLength(54);
   });
 
   it('stores opening hours as time-of-day values', () => {

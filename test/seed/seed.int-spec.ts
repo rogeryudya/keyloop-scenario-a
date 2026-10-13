@@ -30,14 +30,14 @@ describe('writeSeed (int)', () => {
     await writeSeed(prisma, buildSeedPlan(data, new Date('2026-10-12T05:00:00.000Z')));
 
     expect(await counts()).toEqual({
-      dealerships: 3,
-      serviceBays: 6,
-      serviceTypes: 7,
-      technicians: 9,
-      qualifications: 27,
-      customers: 6,
-      vehicles: 8,
-      appointments: 3,
+      dealerships: 6,
+      serviceBays: 12,
+      serviceTypes: 10,
+      technicians: 18,
+      qualifications: 54,
+      customers: 16,
+      vehicles: 22,
+      appointments: 24,
     });
   });
 

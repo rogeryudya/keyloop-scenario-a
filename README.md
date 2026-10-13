@@ -49,8 +49,9 @@ Stop with `Ctrl+C`; remove everything, data included, with `docker compose --pro
 </details>
 
 ## Try it
-The seed data has 3 dealerships in Thailand and Vietnam, their bays and technicians, 6 customers with
-8 vehicles, and 3 demo appointments placed **tomorrow** so the scenarios below always work
+The seed data has 6 dealerships in Thailand and Vietnam with their bays and technicians, 10 service types,
+16 customers with 22 vehicles, and 24 demo appointments placed **tomorrow and the next days**: 3 drive the
+scenarios below, and the rest fill the calendars of Chiang Mai, Da Nang and Phuket
 ([prisma/seed/README.md](prisma/seed/README.md)). Times are local to the dealership, UTC+7.
 
 **In Swagger:** open http://localhost:3000/docs, try `POST /v1/appointments` with its example body, and change
