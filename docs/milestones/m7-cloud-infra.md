@@ -6,7 +6,7 @@
 
 ## Tasks
 - [x] `infra/modules/ecr`: repository + lifecycle policy
-- [ ] `infra/modules/network`: VPC, subnets, security groups
+- [x] `infra/modules/network`: VPC, subnets, security groups
 - [ ] `infra/modules/ecs-service`: cluster, task definition (`DB_SECRET_ID`, OTel env), service, ALB, IAM task/execution roles (secret read only), log group
 - [ ] `pnpm infra:ecs`: build `runtime` image → push to floci ECR → apply → wait for healthy
 - [ ] `envs/aws-dev` wires all modules; passes `terraform validate` (never applied)
@@ -55,3 +55,6 @@
     the ALB, not on target health.
   - Verify the push on Docker Engine before relying on it in CI.
 - Task 1: `infra/modules/ecr` was applied to floci from a throwaway root: the repo and lifecycle policy were created, and mutability, scan-on-push and both lifecycle rules read back as configured. A re-plan was clean and destroy worked. Invalid `image_tag_mutability` and `max_image_count` values are rejected with clear messages. `terraform fmt` and tflint are clean. No env uses the module yet: `envs/local` gets it with `pnpm infra:ecs` (task 4) and `envs/aws-dev` in task 5, so CI's `validate` covers it from then.
+- Task 2: `infra/modules/network` was applied to floci with the NAT gateway on: all 26 resources (VPC, IGW, 4 subnets, route tables, EIP + NAT, 3 SGs with 6 rules, DB subnet group) in 19 s. Destroy worked, and fmt and tflint are clean.
+  - **Gotcha for task 4:** with `skip_requesting_account_id = true` (set in `envs/local` today), the four rules that reference another security group show a diff on every plan. floci returns the reference as `000000000000/sg-…`, and the provider only strips the prefix when it knows its own account id. Without the flag (floci STS answers `GetCallerIdentity`), the re-plan is clean.
+  - Removing the flag on an **existing** state fails with `Unexpected Identity Change`. Task 4 must handle that for existing `tf-state` volumes: recreate, or move the ECS stack to its own root/state.

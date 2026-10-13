@@ -78,6 +78,12 @@ One private repository for the API image: `aws_ecr_repository` with scan on push
 Tags are `IMMUTABLE` by default, so deploys use a unique tag (the git sha) and a tag always means the same image. `force_delete` is for throwaway environments.
 Outputs: `repository_url`, `repository_arn`, `repository_name`, `registry_id`. Full table: `infra/modules/ecr/README.md`.
 
+## `network` module contract (M7)
+A VPC with public subnets (ALB, NAT gateway) and private subnets (ECS tasks, RDS), one of each per AZ.
+Security groups chain hop by hop: internet → ALB (listener port) → tasks (app port, from the ALB only) → RDS (Postgres, from the tasks only).
+It also creates an RDS subnet group for the `database` module. `enable_nat_gateway` (default off, it costs money) gives private tasks a route to ECR, Secrets Manager and Logs in real AWS.
+Outputs: VPC, subnet and security group ids, and `db_subnet_group_name`. Full table: `infra/modules/network/README.md`.
+
 ## Running Terraform
 Terraform runs **in a container** (`hashicorp/terraform:1.16.5`, Compose service `terraform`, profile `tools`), so nobody needs it installed.
 Its entrypoint is `infra/scripts/terraform.sh`, which runs `init` and then the requested action on `envs/local`:
