@@ -1,6 +1,6 @@
 # M7 — Cloud-ready infrastructure (stretch)
 
-**Status:** `in-progress`
+**Status:** `done`
 **Goal:** show the API running the way it would in AWS (container image in ECR, ECS Fargate service), provisioned by Terraform against floci.
 **Requirements:** none from the brief; demonstrates production readiness. Only start once M0–M6 are done.
 
@@ -10,7 +10,7 @@
 - [x] `infra/modules/ecs-service`: cluster, task definition (`DB_SECRET_ID`, OTel env), service, ALB, IAM task/execution roles (secret read only), log group
 - [x] `pnpm infra:ecs`: build `runtime` image → push to floci ECR → apply → wait for healthy
 - [x] `envs/aws-dev` wires all modules; passes `terraform validate` (never applied)
-- [ ] Design notes: what floci proves vs what it can't (IAM enforcement, real networking, scaling)
+- [x] Design notes: what floci proves vs what it can't (IAM enforcement, real networking, scaling)
 
 ## Acceptance criteria
 - `pnpm infra:ecs` from a clean state → `GET /health` through the ECS service returns 200
@@ -88,3 +88,7 @@
   - Beyond validate: a full `plan` against floci, from a scratch copy with a local backend override, gave 43 resources
     and no errors. That shows the module wiring and the values passed between modules resolve.
   - The lock file is unchanged (same providers).
+- Task 6: `docs/design-notes.md` › Running on ECS (M7) states what the floci run proves (production-ready image, real
+  Terraform with a clean re-plan, end-to-end wiring incl. logs and traces, rolling deploys) and what it can't, with a
+  table for IAM, networking, image pull, load balancing, deployments and scaling, and what to check on real AWS. The
+  "more time" list now has a real-AWS deployment item. The README has a short optional "run it on ECS" section.

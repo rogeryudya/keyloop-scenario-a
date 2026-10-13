@@ -2,7 +2,7 @@
 
 Index and progress tracker. Each milestone has its own file with goal, tasks, acceptance criteria and notes.
 
-**Current milestone: [M7 — Cloud-ready infra (stretch)](m7-cloud-infra.md)**, optional; M0–M6 deliver the brief.
+**Current milestone:** none. M0–M7 are delivered; M4 and M5 each have one task waiting on the repo owner (below).
 
 M4 and M5 stay `in-progress` until their last task is unblocked by the repo owner: branch protection + Bugbot (M4), a Datadog trial-key check (M5). See their Notes.
 
@@ -15,7 +15,7 @@ M4 and M5 stay `in-progress` until their last task is unblocked by the repo owne
 | M4 | [AWS-like environment and full CI](m4-environment.md) | floci + Terraform, Secrets Manager, full-stack Compose, Bugbot | `in-progress` |
 | M5 | [Observability and quality](m5-observability-quality.md) | OpenTelemetry, logs, metrics, coverage, load check | `in-progress` |
 | M6 | [Delivery](m6-delivery.md) | README, design notes, clean-machine check | `done` |
-| M7 | [Cloud-ready infra (stretch)](m7-cloud-infra.md) | ECR + ECS on floci | `in-progress` |
+| M7 | [Cloud-ready infra (stretch)](m7-cloud-infra.md) | ECR + ECS on floci | `done` |
 
 **Priority if time runs short:** M0 → M1 → M2 are essential (they implement the brief). Then M6 (a reviewer must be able to run it), then M3, M4, M5. M7 is optional.
 
