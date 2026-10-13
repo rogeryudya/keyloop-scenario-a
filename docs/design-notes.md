@@ -248,7 +248,6 @@ Roughly in priority order; none of these is needed for the brief.
    table for notifications or a CRM, without coupling the booking transaction to them.
 7. **Operational polish:**
    - name HTTP spans by route;
-   - verify the Datadog profile with a real key;
    - add dashboards and alerts on rejection rate and conflict retries.
 8. **Real AWS deployment** of `envs/aws-dev`:
    - a CD pipeline that pushes the image and applies with its git sha;

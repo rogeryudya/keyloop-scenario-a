@@ -1,6 +1,6 @@
 # M5 — Observability and quality
 
-**Status:** `in-progress`
+**Status:** `done`
 **Goal:** appointment behaviour is visible in traces, logs and metrics, and test coverage of the critical paths is complete.
 **Requirements:** NFR-3, NFR-5
 
@@ -8,7 +8,7 @@
 - [x] OpenTelemetry: `instrumentation.ts`, auto-instrumentation (HTTP, Prisma/pg), a span per command/query handler with outcome attribute; traces visible in local Grafana
 - [x] Structured logging (pino) with request id + trace id correlation
 - [x] Business metrics: `appointments_created_total`, `appointment_rejections_total{reason}`, `appointment_conflict_retries_total`
-- [ ] Optional Datadog Compose profile documented and verified with a trial key
+- [x] ~~Optional Datadog Compose profile documented and verified with a trial key~~ dropped: profile removed (see Notes)
 - [x] Coverage review: domain + application ≥ 90%; add tests for any uncovered rule branch
 - [x] Light load check: script firing ~200 concurrent booking requests; confirm no double-booking and record latency in design notes
 
@@ -29,3 +29,4 @@
 - Task 5: domain + application coverage was already above 90% in every folder (lowest: `shared/application` at 94.7% branches). The remaining uncovered branches are defensive guards that real inputs can't reach (equal ids in a comparator, a `noUncheckedIndexedAccess` guard, an `Intl` part fallback), except the availability rethrow, which now has a test (an allocator bug isn't read as "slot not free"). The gate is `coverageThreshold` per folder in `jest.config.js`, enforced by `pnpm test:cov` in the CI `unit` job; checked that it fails (exit 1) when a threshold isn't met.
 - Task 6: `pnpm load:booking` (200 concurrent bookings on 8 overlapping slots) ran three times on the Compose stack: 8/8/7 created, the rest `409 NO_TECHNICIAN_AVAILABLE`, no 5xx, no double-booking, every 201 stored, 13 conflict retries in total. p50 1.4–1.8 s and p99 1.9–2.7 s under that burst. Results and analysis are in `docs/design-notes.md` › Load check (the rest of that file comes with M6).
 - Fix (PR #6 CI): the concurrency int test was flaky on CI (once on main after M3, twice on this PR). After the test was changed to print rejection reasons, the cause showed up: Prisma `P2034` (Postgres deadlock 40P01) between two concurrent inserts racing on the exclusion constraint. The repository now treats it as a lost race (`AppointmentConflictError` → bounded retry), like 23P01 and P2002. See ADR-0006 › Consequences.
+- Task 4 dropped (2026-10-13): the `datadog` Compose profile and the `OTEL_EXPORTER_OTLP_ENDPOINT_DOCKER` override were removed. The profile needed a personal API key and was only ever checked with a dummy key. The app still exports plain OTLP, so a production backend (Datadog Agent, Grafana Cloud, ADOT) is a deployment setting: `OTEL_EXPORTER_OTLP_ENDPOINT`, or `otel_exporter_otlp_endpoint` in `envs/aws-dev`. With this, M5 is done.
