@@ -1,0 +1,190 @@
+# Booking scenarios from prisma/seed/README.md › Demo scenarios. Each request shows one business rule.
+# Run with the VS Code "REST Client" extension (humao.rest-client): click "Send Request" above a request.
+# Needs a running API with seed data: `docker compose --profile app up --build` (see README › Try it).
+#
+# Bookings that succeed send an Idempotency-Key (FR-11), so running this file again replays the same
+# 201 instead of booking twice. Rejected requests change nothing and can be re-sent freely.
+# Scenario 10 (parallel requests) can't be expressed here; README › Try it has a one-line curl version.
+
+@baseUrl = http://localhost:3000
+# "Tomorrow" in the dealerships' time zone (UTC+7, no daylight saving) = UTC date of now + 7 h + 1 day.
+# The seed places its demo appointments on this day; after midnight there, re-run the seed (README).
+@day = {{$datetime 'YYYY-MM-DD' 31 h}}
+@offset = +07:00
+
+# Dealerships
+@bangkok = 10000000-0000-4000-8000-000000000001
+@hcmc = 10000000-0000-4000-8000-000000000002
+@hanoi = 10000000-0000-4000-8000-000000000003
+# Service types
+@oilChange = 40000000-0000-4000-8000-000000000001
+@annualService = 40000000-0000-4000-8000-000000000004
+@evBatteryCheck = 40000000-0000-4000-8000-000000000005
+@transmission = 40000000-0000-4000-8000-000000000007
+# Customers and their vehicles
+@somsak = 50000000-0000-4000-8000-000000000001
+@somsakCorolla = 60000000-0000-4000-8000-000000000001
+@somsakTesla = 60000000-0000-4000-8000-000000000002
+@malee = 50000000-0000-4000-8000-000000000002
+@prasit = 50000000-0000-4000-8000-000000000003
+@prasitBmw = 60000000-0000-4000-8000-000000000004
+@lan = 50000000-0000-4000-8000-000000000004
+@lanVinfast = 60000000-0000-4000-8000-000000000005
+@tuan = 50000000-0000-4000-8000-000000000006
+@tuanAccent = 60000000-0000-4000-8000-000000000008
+
+### 1 · FR-1-3: Somsak books an oil change at Bangkok 11:00
+### → 201 + Location. The system picks a free bay and Anong or Boonsong (BR-11).
+# @name scenario1
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+Idempotency-Key: demo-1-{{day}}
+
+{
+  "customerId": "{{somsak}}",
+  "vehicleId": "{{somsakCorolla}}",
+  "dealershipId": "{{bangkok}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T11:00:00{{offset}}"
+}
+
+### 1b · See what was booked: bay, technician, times in UTC
+GET {{baseUrl}}/v1/appointments/{{scenario1.response.body.$.id}}
+
+### 2 · BR-7: Tuan books an oil change at Hanoi 10:00
+### → 409 NO_SERVICE_BAY_AVAILABLE. Hanoi's only bay is taken by a demo appointment 10:00-10:30.
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+
+{
+  "customerId": "{{tuan}}",
+  "vehicleId": "{{tuanAccent}}",
+  "dealershipId": "{{hanoi}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T10:00:00{{offset}}"
+}
+
+### 3 · BR-2: same request at 10:30
+### → 201. Back-to-back is allowed: intervals are half-open, [10:00, 10:30) and [10:30, 11:00) don't overlap.
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+Idempotency-Key: demo-3-{{day}}
+
+{
+  "customerId": "{{tuan}}",
+  "vehicleId": "{{tuanAccent}}",
+  "dealershipId": "{{hanoi}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T10:30:00{{offset}}"
+}
+
+### 4 · BR-8: Prasit books a transmission repair (180 min) at Bangkok 09:30
+### → 409 NO_TECHNICIAN_AVAILABLE. Bays are free, but Decha, the only qualified technician, is busy 09:00-10:30.
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+
+{
+  "customerId": "{{prasit}}",
+  "vehicleId": "{{prasitBmw}}",
+  "dealershipId": "{{bangkok}}",
+  "serviceTypeId": "{{transmission}}",
+  "start": "{{day}}T09:30:00{{offset}}"
+}
+
+### 5 · BR-2, BR-8: same request at 10:30
+### → 201 with Decha assigned (10:30-13:30).
+# @name scenario5
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+Idempotency-Key: demo-5-{{day}}
+
+{
+  "customerId": "{{prasit}}",
+  "vehicleId": "{{prasitBmw}}",
+  "dealershipId": "{{bangkok}}",
+  "serviceTypeId": "{{transmission}}",
+  "start": "{{day}}T10:30:00{{offset}}"
+}
+
+### 5b · Check the technician is Decha Phongsri
+GET {{baseUrl}}/v1/appointments/{{scenario5.response.body.$.id}}
+
+### 6 · BR-6: Lan books an EV battery check at Hanoi
+### → 422 SERVICE_TYPE_NOT_SUPPORTED. No technician at Hanoi is qualified for it.
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+
+{
+  "customerId": "{{lan}}",
+  "vehicleId": "{{lanVinfast}}",
+  "dealershipId": "{{hanoi}}",
+  "serviceTypeId": "{{evBatteryCheck}}",
+  "start": "{{day}}T11:00:00{{offset}}"
+}
+
+### 7 · BR-5: Malee books with Somsak's Tesla
+### → 422 VEHICLE_NOT_OWNED_BY_CUSTOMER.
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+
+{
+  "customerId": "{{malee}}",
+  "vehicleId": "{{somsakTesla}}",
+  "dealershipId": "{{bangkok}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T12:00:00{{offset}}"
+}
+
+### 8 · BR-4: Lan books an annual service (120 min) at Ho Chi Minh City 15:30
+### → 422 OUTSIDE_OPENING_HOURS. It would end 17:30; the dealership closes 17:00.
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+
+{
+  "customerId": "{{lan}}",
+  "vehicleId": "{{lanVinfast}}",
+  "dealershipId": "{{hcmc}}",
+  "serviceTypeId": "{{annualService}}",
+  "start": "{{day}}T15:30:00{{offset}}"
+}
+
+### 9 · BR-9: Tuan books an oil change at Hanoi 14:00
+### → 201. The only bay has an appointment then, but it's CANCELLED, so it doesn't block.
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+Idempotency-Key: demo-9-{{day}}
+
+{
+  "customerId": "{{tuan}}",
+  "vehicleId": "{{tuanAccent}}",
+  "dealershipId": "{{hanoi}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T14:00:00{{offset}}"
+}
+
+### 11 · BR-3: a start time in the past
+### → 422 APPOINTMENT_IN_PAST.
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+
+{
+  "customerId": "{{somsak}}",
+  "vehicleId": "{{somsakCorolla}}",
+  "dealershipId": "{{bangkok}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "2020-01-15T10:00:00{{offset}}"
+}
+
+### 12 · NFR-2: malformed request (bad UUID, no offset, unknown field)
+### → 400 VALIDATION_FAILED, one details[] entry per problem.
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+
+{
+  "customerId": "not-a-uuid",
+  "vehicleId": "{{somsakCorolla}}",
+  "dealershipId": "{{bangkok}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T11:00:00",
+  "serviceBayId": "20000000-0000-4000-8000-000000000101"
+}

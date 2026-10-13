@@ -51,4 +51,4 @@ Use "tomorrow" in the dealership's local time. Each scenario shows one business 
 | 10 | Fire #2's request at **11:00** 10× in parallel | Exactly 1 × 201, 9 × 409 | FR-5, BR-10 |
 | 11 | Any booking with a start time in the past | 422 `APPOINTMENT_IN_PAST` | BR-3 |
 
-These become `test/http/*.http` demo files in M6.
+Ready-made requests for these are in [`test/http/`](../../test/http/) (see the root README › Try it).

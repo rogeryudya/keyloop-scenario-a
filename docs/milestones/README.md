@@ -2,9 +2,9 @@
 
 Index and progress tracker. Each milestone has its own file with goal, tasks, acceptance criteria and notes.
 
-**Current milestone: [M5 — Observability and quality](m5-observability-quality.md)**
+**Current milestone: [M6 — Delivery](m6-delivery.md)**
 
-M4 stays `in-progress` until its last task (branch protection + Bugbot) is unblocked by the repo owner; see its Notes.
+M4 and M5 stay `in-progress` until their last task is unblocked by the repo owner: branch protection + Bugbot (M4), a Datadog trial-key check (M5). See their Notes.
 
 | # | Milestone | Covers | Status |
 |---|---|---|---|
@@ -14,7 +14,7 @@ M4 stays `in-progress` until its last task (branch protection + Bugbot) is unblo
 | M3 | [Availability query and lifecycle](m3-availability-lifecycle.md) | FR-7 availability, FR-8 cancel, FR-9 list, FR-11 idempotency | `done` |
 | M4 | [AWS-like environment and full CI](m4-environment.md) | floci + Terraform, Secrets Manager, full-stack Compose, Bugbot | `in-progress` |
 | M5 | [Observability and quality](m5-observability-quality.md) | OpenTelemetry, logs, metrics, coverage, load check | `in-progress` |
-| M6 | [Delivery](m6-delivery.md) | README, design notes, clean-machine check | `todo` |
+| M6 | [Delivery](m6-delivery.md) | README, design notes, clean-machine check | `in-progress` |
 | M7 | [Cloud-ready infra (stretch)](m7-cloud-infra.md) | ECR + ECS on floci | `todo` |
 
 **Priority if time runs short:** M0 → M1 → M2 are essential (they implement the brief). Then M6 (a reviewer must be able to run it), then M3, M4, M5. M7 is optional.

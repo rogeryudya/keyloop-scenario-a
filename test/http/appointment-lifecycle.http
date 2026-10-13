@@ -1,0 +1,100 @@
+# Appointment lifecycle: book, replay, read, list, cancel, rebook (FR-6, FR-8, FR-9, FR-11).
+# Run top to bottom with the VS Code "REST Client" extension (humao.rest-client). Later requests reuse
+# the id from step 1, so send them in order.
+# Uses Hanoi at 15:00 tomorrow: Hanoi has one bay, so a cancellation visibly frees the slot.
+# Meant to run once per day. On a second run, steps 1-2 replay the first booking and step 10 gets 409,
+# because the first run's step 10 holds the slot. README › Try it explains how to reset.
+# Needs a running API with seed data: `docker compose --profile app up --build` (see README › Try it).
+
+@baseUrl = http://localhost:3000
+# "Tomorrow" in the dealerships' time zone (UTC+7, no daylight saving) = UTC date of now + 7 h + 1 day.
+@day = {{$datetime 'YYYY-MM-DD' 31 h}}
+
+@hanoi = 10000000-0000-4000-8000-000000000003
+@oilChange = 40000000-0000-4000-8000-000000000001
+@huy = 50000000-0000-4000-8000-000000000005
+@huyMazda = 60000000-0000-4000-8000-000000000007
+@lan = 50000000-0000-4000-8000-000000000004
+@lanVios = 60000000-0000-4000-8000-000000000006
+
+### 1 · Huy books an oil change at Hanoi tomorrow 15:00 → 201 + Location header
+# @name book
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+Idempotency-Key: lifecycle-{{day}}
+
+{
+  "customerId": "{{huy}}",
+  "vehicleId": "{{huyMazda}}",
+  "dealershipId": "{{hanoi}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T15:00:00+07:00"
+}
+
+### 2 · Same key, same booking → the same 201 and id, no second appointment (FR-11)
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+Idempotency-Key: lifecycle-{{day}}
+
+{
+  "customerId": "{{huy}}",
+  "vehicleId": "{{huyMazda}}",
+  "dealershipId": "{{hanoi}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T15:00:00+07:00"
+}
+
+### 3 · Same key, different booking → 422 IDEMPOTENCY_KEY_REUSED
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+Idempotency-Key: lifecycle-{{day}}
+
+{
+  "customerId": "{{huy}}",
+  "vehicleId": "{{huyMazda}}",
+  "dealershipId": "{{hanoi}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T15:30:00+07:00"
+}
+
+### 4 · Read it: customer, vehicle, bay, technician, times in UTC (FR-6)
+GET {{baseUrl}}/v1/appointments/{{book.response.body.$.id}}
+
+### 5 · Huy's appointments, newest first (FR-9)
+GET {{baseUrl}}/v1/appointments?customerId={{huy}}
+
+### 6 · Hanoi's appointments tomorrow (from inclusive, to exclusive; %2B is "+")
+GET {{baseUrl}}/v1/appointments?dealershipId={{hanoi}}&from={{day}}T00:00:00%2B07:00&to={{day}}T23:59:59%2B07:00
+
+### 7 · Lan wants the same slot → 409 NO_SERVICE_BAY_AVAILABLE (Hanoi's only bay is Huy's)
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+
+{
+  "customerId": "{{lan}}",
+  "vehicleId": "{{lanVios}}",
+  "dealershipId": "{{hanoi}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T15:00:00+07:00"
+}
+
+### 8 · Huy cancels → 200, status CANCELLED, cancelledAt set (FR-8)
+POST {{baseUrl}}/v1/appointments/{{book.response.body.$.id}}/cancel
+
+### 9 · Cancel again → 422 APPOINTMENT_NOT_CANCELLABLE (BR-12)
+POST {{baseUrl}}/v1/appointments/{{book.response.body.$.id}}/cancel
+
+### 10 · Lan tries again → 201: the cancelled appointment no longer holds the bay (BR-9)
+POST {{baseUrl}}/v1/appointments
+Content-Type: application/json
+
+{
+  "customerId": "{{lan}}",
+  "vehicleId": "{{lanVios}}",
+  "dealershipId": "{{hanoi}}",
+  "serviceTypeId": "{{oilChange}}",
+  "start": "{{day}}T15:00:00+07:00"
+}
+
+### 11 · Unknown id → 404 APPOINTMENT_NOT_FOUND
+GET {{baseUrl}}/v1/appointments/00000000-0000-4000-8000-000000000000
