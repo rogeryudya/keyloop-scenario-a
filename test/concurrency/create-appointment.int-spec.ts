@@ -80,20 +80,26 @@ describe('CreateAppointment under concurrency (int)', () => {
     failed: results.filter((r) => r.status === 'rejected').map((r) => r.reason as unknown),
   });
 
+  /** Assert failures first, so a flaky run reports the actual errors, not just a count. */
+  const expectOnlyConflicts = (failed: unknown[]) => {
+    const unexpected = failed.filter((e) => !(e instanceof ConflictError));
+    expect(unexpected.map((e) => (e instanceof Error ? `${e.name}: ${e.message}` : e))).toEqual([]);
+  };
+
   it(`books exactly one of ${PARALLEL} parallel requests when there is one bay`, async () => {
     const { booked, failed } = split(await bookInParallel(HANOI));
 
+    expectOnlyConflicts(failed); // 409
     expect(booked).toHaveLength(1);
     expect(failed).toHaveLength(PARALLEL - 1);
-    for (const error of failed) expect(error).toBeInstanceOf(ConflictError); // 409
     expect(await prisma.appointment.count({ where: { dealershipId: HANOI } })).toBe(1);
   });
 
   it(`books exactly two of ${PARALLEL} with two bays and two qualified technicians`, async () => {
     const { booked, failed } = split(await bookInParallel(HCMC));
 
+    expectOnlyConflicts(failed);
     expect(booked).toHaveLength(2);
-    for (const error of failed) expect(error).toBeInstanceOf(ConflictError);
     const rows = await prisma.appointment.findMany({ where: { dealershipId: HCMC } });
     expect(new Set(rows.map((r) => r.serviceBayId)).size).toBe(2);
     expect(new Set(rows.map((r) => r.technicianId)).size).toBe(2);
@@ -109,7 +115,8 @@ describe('CreateAppointment under concurrency (int)', () => {
       ),
     );
 
-    const { booked } = split(results);
+    const { booked, failed } = split(results);
+    expect(failed.map((e) => (e instanceof Error ? `${e.name}: ${e.message}` : e))).toEqual([]); // all replay
     const ids = new Set(booked.map((r) => (r as PromiseFulfilledResult<{ id: string }>).value.id));
     expect(await prisma.appointment.count({ where: { dealershipId: HCMC } })).toBe(1);
     expect(await prisma.appointment.count({ where: { idempotencyKey: 'same-key' } })).toBe(1);
