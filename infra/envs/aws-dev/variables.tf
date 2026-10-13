@@ -1,15 +1,22 @@
 variable "region" {
-  description = "AWS region."
+  description = "AWS region. The first two available AZs are used."
   type        = string
   default     = "us-east-1"
 }
 
-variable "db_subnet_group_name" {
-  description = "Existing DB subnet group in private subnets (the network module arrives in M7)."
+variable "image_tag" {
+  description = "Tag of the API image in ECR, set by the deploy pipeline (the git sha)."
   type        = string
 }
 
-variable "db_security_group_ids" {
-  description = "Security groups allowing Postgres from the API tasks only."
-  type        = list(string)
+variable "desired_count" {
+  description = "API tasks to run; 2 spreads them over both AZs."
+  type        = number
+  default     = 2
+}
+
+variable "otel_exporter_otlp_endpoint" {
+  description = "OTLP/HTTP collector for traces, logs and metrics (e.g. a Datadog Agent or ADOT collector). null: off."
+  type        = string
+  default     = null
 }

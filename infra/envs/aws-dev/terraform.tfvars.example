@@ -1,3 +1,6 @@
-# Copy to terraform.tfvars (git-ignored) for a real plan. Placeholder ids.
-db_subnet_group_name  = "keyloop-dev-private"
-db_security_group_ids = ["sg-0123456789abcdef0"]
+# Copy to terraform.tfvars (git-ignored) for a real plan. The network, database, ECR and ECS service are all created
+# here; the only required input is the image tag the pipeline pushed to ECR.
+image_tag = "1a2b3c4"
+# region                      = "us-east-1"
+# desired_count               = 2
+# otel_exporter_otlp_endpoint = "http://datadog-agent.internal:4318"

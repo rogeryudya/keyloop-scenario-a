@@ -42,9 +42,20 @@ No `endpoints {}` block: the endpoint comes from `AWS_ENDPOINT_URL` (`http://loc
 **State:** local backend with `path = "state/terraform.tfstate"` in `envs/local`. The `state/` folder is git-ignored and mounted as the `tf-state` Docker volume when run via Compose, so state survives container runs. `aws-dev` declares an S3 backend with S3-native locking (`use_lockfile`; DynamoDB lock tables are deprecated) but is never initialised against real AWS in this project.
 
 ## `envs/aws-dev` (real-AWS shape)
-Same `database` module, no floci flags, credentials from the standard AWS chain. It takes an existing DB subnet group
-and security groups as variables (`terraform.tfvars.example`); the network module that would create them is M7.
-`secret_hosts` stays empty, so the app's secret is `keyloop-dev/db` holding the real instance address.
+The same modules as the floci envs, wired for real AWS, with no floci flags and credentials from the standard AWS chain:
+
+- **`network`:** the first two AZs of the region, public and private subnets, and a NAT gateway (private tasks need a
+  route to ECR, Secrets Manager and Logs).
+- **`database`:** RDS in the network module's private subnet group and DB security group. `secret_hosts` stays empty,
+  so the app's secret is `keyloop-dev/db` holding the real instance address.
+- **`ecr`:** `IMMUTABLE` tags.
+- **`ecs-service`:** 2 tasks in private subnets behind an ALB on port 80, `wait_for_steady_state`. The task role reads
+  the DB secret, so there are no keys and no endpoint override in the task. OTel is off unless
+  `otel_exporter_otlp_endpoint` is set (e.g. a Datadog Agent or ADOT collector).
+
+The only required input is `image_tag`, set by a deploy pipeline (`terraform.tfvars.example`). Outputs: `api_url`,
+`repository_url`, cluster/service, log group, DB endpoint and secret ARN. It is never applied in this project. Besides
+CI's `validate`, a full `plan` was run against floci (43 resources), with a local backend in a scratch copy.
 Validate without AWS access:
 `docker compose run --rm --no-deps -e TF_DATA_DIR=/tmp/tf -w /infra/envs/aws-dev --entrypoint sh terraform -c 'terraform init -backend=false && terraform validate'`
 (a separate `TF_DATA_DIR`, so it doesn't share the `tf-data` volume with `envs/local`).

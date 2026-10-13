@@ -9,7 +9,7 @@
 - [x] `infra/modules/network`: VPC, subnets, security groups
 - [x] `infra/modules/ecs-service`: cluster, task definition (`DB_SECRET_ID`, OTel env), service, ALB, IAM task/execution roles (secret read only), log group
 - [x] `pnpm infra:ecs`: build `runtime` image → push to floci ECR → apply → wait for healthy
-- [ ] `envs/aws-dev` wires all modules; passes `terraform validate` (never applied)
+- [x] `envs/aws-dev` wires all modules; passes `terraform validate` (never applied)
 - [ ] Design notes: what floci proves vs what it can't (IAM enforcement, real networking, scaling)
 
 ## Acceptance criteria
@@ -81,3 +81,10 @@
   - `.terraform.lock.hcl` for `local-ecs` carries hashes for all five platforms (verified with `providers lock`).
   - In Git Bash, `docker compose run -w /infra/...` needs `MSYS_NO_PATHCONV=1`, or the path is rewritten into a
     Windows path.
+- Task 5: `envs/aws-dev` now wires `network` (NAT on, AZs from the region), `database` (private subnet group + DB
+  security group from `network`, replacing two input variables), `ecr` (IMMUTABLE) and `ecs-service` (2 tasks, port 80,
+  `wait_for_steady_state`, no floci endpoint or keys, optional OTel endpoint). Only `image_tag` is required.
+  - `terraform validate` passes for all three envs; fmt and tflint are clean.
+  - Beyond validate: a full `plan` against floci, from a scratch copy with a local backend override, gave 43 resources
+    and no errors. That shows the module wiring and the values passed between modules resolve.
+  - The lock file is unchanged (same providers).
