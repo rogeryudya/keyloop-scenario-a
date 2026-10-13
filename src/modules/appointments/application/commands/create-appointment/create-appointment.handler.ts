@@ -2,6 +2,7 @@ import { Transactional } from '@nestjs-cls/transactional';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { createHash, randomUUID } from 'node:crypto';
 import { Clock } from '../../../../../shared/domain/clock';
+import { DomainError } from '../../../../../shared/domain/errors';
 import { TimeSlot } from '../../../../../shared/domain/time-slot';
 import { Appointment } from '../../../domain/appointment.entity';
 import {
@@ -13,6 +14,7 @@ import {
 import { AppointmentRepository } from '../../../domain/appointment.repository';
 import { ResourceAllocator } from '../../../domain/resource-allocator';
 import { BookableResources } from '../../ports/bookable-resources';
+import { BookingMetrics } from '../../ports/booking-metrics';
 import { BookingParties } from '../../ports/booking-parties';
 import { CreateAppointmentCommand } from './create-appointment.command';
 
@@ -36,6 +38,12 @@ const requestHashOf = (cmd: CreateAppointmentCommand): string =>
     )
     .digest('hex');
 
+/** `replayed`: answered from a known idempotency key, so nothing new was booked. */
+interface BookingResult {
+  readonly id: string;
+  readonly replayed: boolean;
+}
+
 @CommandHandler(CreateAppointmentCommand)
 export class CreateAppointmentHandler implements ICommandHandler<CreateAppointmentCommand> {
   constructor(
@@ -43,20 +51,27 @@ export class CreateAppointmentHandler implements ICommandHandler<CreateAppointme
     private readonly resources: BookableResources,
     private readonly parties: BookingParties,
     private readonly clock: Clock,
+    private readonly metrics: BookingMetrics,
   ) {}
 
   /**
    * Each attempt is its own transaction: after an exclusion violation Postgres aborts the
    * transaction, so the retry must start a new one and re-read what the winner committed.
+   * Outcomes are counted here, after the attempt's transaction has committed or rolled back.
    */
   async execute(cmd: CreateAppointmentCommand): Promise<{ id: string }> {
     for (let retry = 0; ; retry += 1) {
       try {
-        return await this.book(cmd);
+        const { id, replayed } = await this.book(cmd);
+        if (!replayed) this.metrics.appointmentCreated();
+        return { id };
       } catch (error) {
-        if (!(error instanceof AppointmentConflictError) || retry >= MAX_CONFLICT_RETRIES) {
-          throw error;
+        if (error instanceof AppointmentConflictError && retry < MAX_CONFLICT_RETRIES) {
+          this.metrics.conflictRetried();
+          continue;
         }
+        if (error instanceof DomainError) this.metrics.bookingRejected(error.code);
+        throw error;
       }
     }
   }
@@ -67,7 +82,7 @@ export class CreateAppointmentHandler implements ICommandHandler<CreateAppointme
    * result even if, say, its start time has passed since (ADR-0007).
    */
   @Transactional()
-  private async book(cmd: CreateAppointmentCommand): Promise<{ id: string }> {
+  private async book(cmd: CreateAppointmentCommand): Promise<BookingResult> {
     const requestHash = cmd.idempotencyKey === undefined ? undefined : requestHashOf(cmd);
     if (cmd.idempotencyKey !== undefined) {
       const prior = await this.appointments.findByIdempotencyKey(cmd.idempotencyKey);
@@ -75,7 +90,7 @@ export class CreateAppointmentHandler implements ICommandHandler<CreateAppointme
         if (prior.toSnapshot().idempotency?.requestHash !== requestHash) {
           throw new IdempotencyKeyReusedError();
         }
-        return { id: prior.id };
+        return { id: prior.id, replayed: true };
       }
     }
 
@@ -132,6 +147,6 @@ export class CreateAppointmentHandler implements ICommandHandler<CreateAppointme
         }),
     });
     await this.appointments.save(appointment); // a same-key race loses on the unique key (FR-11)
-    return { id: appointment.id };
+    return { id: appointment.id, replayed: false };
   }
 }

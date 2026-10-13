@@ -3,6 +3,7 @@ import { FixedClock } from '../../../../../../test/fakes/fixed-clock';
 import { InMemoryAppointmentRepository } from '../../../../../../test/fakes/in-memory-appointment-repository';
 import { InMemoryBookableResources } from '../../../../../../test/fakes/in-memory-bookable-resources';
 import { InMemoryBookingParties } from '../../../../../../test/fakes/in-memory-booking-parties';
+import { RecordingBookingMetrics } from '../../../../../../test/fakes/recording-booking-metrics';
 import { useNoOpTransactions } from '../../../../../../test/helpers/transactions';
 import { OpeningHours } from '../../../../../shared/domain/opening-hours';
 import { TimeSlot } from '../../../../../shared/domain/time-slot';
@@ -56,6 +57,7 @@ describe('CreateAppointmentHandler', () => {
   let appointments: InMemoryAppointmentRepository;
   let handler: CreateAppointmentHandler;
   let clock: FixedClock;
+  let metrics: RecordingBookingMetrics;
 
   const setup = (
     options: { existing?: Appointment[]; bays?: string[]; technicians?: string[] } = {},
@@ -85,7 +87,8 @@ describe('CreateAppointmentHandler', () => {
       ]),
     );
     clock = new FixedClock(NOW);
-    handler = new CreateAppointmentHandler(appointments, resources, parties, clock);
+    metrics = new RecordingBookingMetrics();
+    handler = new CreateAppointmentHandler(appointments, resources, parties, clock, metrics);
   };
 
   const command = (overrides: Partial<CreateAppointmentCommand> = {}): CreateAppointmentCommand => {
@@ -333,6 +336,58 @@ describe('CreateAppointmentHandler', () => {
       const start = new Date('2026-10-13T10:45:00.000Z');
 
       expect(await rejection(command({ start }))).toMatchObject({ code: 'OUTSIDE_OPENING_HOURS' });
+    });
+  });
+
+  describe('metrics (NFR-5)', () => {
+    it('counts a confirmed booking', async () => {
+      await handler.execute(command());
+
+      expect(metrics).toMatchObject({ created: 1, conflictRetries: 0, rejections: [] });
+    });
+
+    it('counts a business rejection with its error code', async () => {
+      setup({ bays: [] });
+      await rejection(command());
+      await rejection(command({ vehicleId: UNKNOWN }));
+
+      expect(metrics.rejections).toEqual(['NO_SERVICE_BAY_AVAILABLE', 'VEHICLE_NOT_FOUND']);
+      expect(metrics.created).toBe(0);
+    });
+
+    it('counts each conflict retry, then the booking', async () => {
+      appointments.loseNextSaves(MAX_CONFLICT_RETRIES);
+
+      await handler.execute(command());
+
+      expect(metrics).toMatchObject({
+        created: 1,
+        conflictRetries: MAX_CONFLICT_RETRIES,
+        rejections: [],
+      });
+    });
+
+    it('counts APPOINTMENT_CONFLICT as a rejection once retries run out', async () => {
+      appointments.loseNextSaves(MAX_CONFLICT_RETRIES + 1);
+
+      await rejection(command());
+
+      expect(metrics.conflictRetries).toBe(MAX_CONFLICT_RETRIES);
+      expect(metrics.rejections).toEqual(['APPOINTMENT_CONFLICT']);
+    });
+
+    it('does not count an idempotent replay as a new appointment', async () => {
+      await handler.execute(command({ idempotencyKey: 'k-1' }));
+      await handler.execute(command({ idempotencyKey: 'k-1' }));
+
+      expect(metrics.created).toBe(1);
+    });
+
+    it('does not count an unexpected error as a business rejection', async () => {
+      jest.spyOn(appointments, 'save').mockRejectedValueOnce(new Error('db down'));
+
+      await expect(handler.execute(command())).rejects.toThrow('db down');
+      expect(metrics).toMatchObject({ created: 0, rejections: [] });
     });
   });
 

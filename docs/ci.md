@@ -33,6 +33,24 @@ PR opened / updated, push to main
 
 GitHub-hosted `ubuntu-latest` runners have Docker, so Testcontainers and Compose work with no extra setup and **no AWS credentials**.
 
+## Run summary page
+Every job adds a section to the run's **Summary** page on GitHub (Actions → the run), so results are readable without
+opening logs. Each section still renders when an earlier step failed.
+
+| Job | Section |
+|---|---|
+| lint | One row per check (Prettier, ESLint, typecheck, Prisma, build) with its outcome |
+| terraform | `fmt`, `validate` (lists the envs), tflint |
+| unit / integration / e2e | Suites, tests, passed/failed/skipped and duration; each failed test with its file and the first 25 lines of the error (ANSI stripped, collapsed); the 5 slowest suites |
+| unit | Coverage gate table: each `coverageThreshold` folder from `jest.config.js`, aggregated like Jest does, ❌ below threshold |
+| smoke | Startup time of the stack, `/health` and `/docs` results, container states and the `/health` body |
+
+The test jobs also use Jest's `github-actions` reporter, which puts each failure as an annotation on the failing line
+(PR → Files changed). The renderer is `scripts/ci/summary.ts` (pure functions in `summary-render.ts`, unit-tested in
+`test/ci/`). Run it locally to preview: `mkdir -p reports && pnpm test --json --outputFile=reports/unit.json`, then
+`pnpm tsx scripts/ci/summary.ts jest "Unit tests" reports/unit.json`. Terraform and smoke write their sections in bash,
+because those jobs don't set up Node.
+
 ## Workflow skeleton
 The real file is `.github/workflows/ci.yml` (actions pinned to commit SHAs, shared setup in `.github/actions/setup`). The outline:
 

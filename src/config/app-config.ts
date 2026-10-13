@@ -1,4 +1,4 @@
-import { EnvironmentVariables, NodeEnv } from './env.schema';
+import { EnvironmentVariables, LogLevel, NodeEnv } from './env.schema';
 
 /** Typed, validated configuration. The only way the app reads env vars. */
 export class AppConfig {
@@ -10,6 +10,10 @@ export class AppConfig {
 
   get port(): number {
     return this.env.PORT;
+  }
+
+  get logLevel(): LogLevel {
+    return this.env.LOG_LEVEL ?? (this.env.NODE_ENV === NodeEnv.Test ? 'silent' : 'info');
   }
 
   get dbSecretId(): string | undefined {

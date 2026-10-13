@@ -64,3 +64,8 @@ Data model notes:
 - Must remember: the handler needs the 23P01 → `AppointmentConflictError` mapping and a bounded retry (M2). Integration
   tests (M1) must prove the constraint rejects overlaps and accepts back-to-back and cancelled overlaps, and a
   concurrency test (M2) must prove only one of N parallel bookings for the last free slot wins.
+- Learned in M5 (CI): Postgres checks an exclusion constraint *after* inserting the index entry, so two transactions
+  inserting overlapping rows at the same instant can each wait for the other. Postgres breaks that deadlock by
+  aborting one (40P01), which Prisma reports as `P2034`. It is a lost race like 23P01, so the repository maps it to
+  `AppointmentConflictError` too, and the bounded retry handles it. The window is tiny, so it showed up only on slow CI
+  runners, as a flaky concurrency test.

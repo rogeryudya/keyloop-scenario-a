@@ -1,5 +1,6 @@
 # Quality gates (docs/ci.md): lint and terraform first, then unit / integration / e2e / smoke in parallel.
 # Bugbot reviews PRs as a GitHub App (.cursor/BUGBOT.md), outside this workflow.
+# Every job writes its section of the run summary page (scripts/ci/summary.ts, or bash where Node isn't set up).
 name: CI
 
 on:
@@ -19,12 +20,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup
-      - run: pnpm format:check
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm prisma validate
-      - run: pnpm build
+      - id: setup
+        uses: ./.github/actions/setup
+      - id: format
+        run: pnpm format:check
+      - id: eslint
+        run: pnpm lint
+      - id: typecheck
+        run: pnpm typecheck
+      - id: prisma
+        run: pnpm prisma validate
+      - id: build
+        run: pnpm build
+      - name: Summary
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: >-
+          pnpm -s tsx scripts/ci/summary.ts steps "Lint and build"
+          "Prettier (format:check)=${{ steps.format.outcome }}"
+          "ESLint incl. layer boundaries=${{ steps.eslint.outcome }}"
+          "TypeScript (typecheck)=${{ steps.typecheck.outcome }}"
+          "Prisma schema=${{ steps.prisma.outcome }}"
+          "Build=${{ steps.build.outcome }}"
 
   terraform:
     runs-on: ubuntu-latest
@@ -34,8 +50,10 @@ jobs:
         with:
           terraform_version: 1.16.5 # same as the Compose terraform image
           terraform_wrapper: false
-      - run: terraform fmt -check -recursive -diff infra
-      - name: terraform validate (every env)
+      - id: fmt
+        run: terraform fmt -check -recursive -diff infra
+      - id: validate
+        name: terraform validate (every env)
         run: |
           for env in infra/envs/*/; do
             echo "::group::$env"
@@ -49,15 +67,44 @@ jobs:
       - run: tflint --init --config "$GITHUB_WORKSPACE/infra/.tflint.hcl"
         env:
           GITHUB_TOKEN: ${{ github.token }} # avoids rate limits when downloading the aws ruleset
-      - run: tflint --chdir=infra --recursive --config "$GITHUB_WORKSPACE/infra/.tflint.hcl"
+      - id: tflint
+        run: tflint --chdir=infra --recursive --config "$GITHUB_WORKSPACE/infra/.tflint.hcl"
+      - name: Summary
+        if: ${{ !cancelled() }}
+        env:
+          FMT: ${{ steps.fmt.outcome }}
+          VALIDATE: ${{ steps.validate.outcome }}
+          TFLINT: ${{ steps.tflint.outcome }}
+        run: |
+          icon() { case "$1" in success) echo "✅ success";; failure) echo "❌ failure";; skipped) echo "⏭️ skipped";; *) echo "❔ ${1:-not run}";; esac; }
+          ok=✅; for o in "$FMT" "$VALIDATE" "$TFLINT"; do [ "$o" = success ] || ok=❌; done
+          envs=$(for d in infra/envs/*/; do printf '%s ' "$(basename "$d")"; done)
+          {
+            echo "## $ok Terraform"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| \`terraform fmt\` | $(icon "$FMT") |"
+            echo "| \`terraform validate\` (envs: ${envs% }) | $(icon "$VALIDATE") |"
+            echo "| tflint (recommended + AWS ruleset) | $(icon "$TFLINT") |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
 
   unit:
     needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup
-      - run: pnpm test:cov
+      - id: setup
+        uses: ./.github/actions/setup
+      # json-summary feeds the coverage table on the summary page; lcov and text keep the artifact and log.
+      - run: >-
+          mkdir -p reports && pnpm test:cov --json --outputFile=reports/unit.json
+          --reporters=default --reporters=github-actions
+          --coverageReporters=json-summary --coverageReporters=lcov --coverageReporters=text
+      - name: Summary
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm -s tsx scripts/ci/summary.ts jest "Unit tests" reports/unit.json coverage/coverage-summary.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -70,16 +117,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup
-      - run: pnpm test:int
+      - id: setup
+        uses: ./.github/actions/setup
+      - run: mkdir -p reports && pnpm test:int --json --outputFile=reports/int.json --reporters=default --reporters=github-actions
+      - name: Summary
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm -s tsx scripts/ci/summary.ts jest "Integration tests (Testcontainers Postgres + floci)" reports/int.json
 
   e2e:
     needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup
-      - run: pnpm test:e2e
+      - id: setup
+        uses: ./.github/actions/setup
+      - run: mkdir -p reports && pnpm test:e2e --json --outputFile=reports/e2e.json --reporters=default --reporters=github-actions
+      - name: Summary
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm -s tsx scripts/ci/summary.ts jest "API e2e tests" reports/e2e.json
 
   # The reviewer quickstart: floci → Terraform bootstrap → migrate/seed → api, then health and Swagger checks.
   smoke:
@@ -87,9 +142,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: docker compose --profile app up -d --build --wait --wait-timeout 600
-      - run: curl -fsS http://localhost:3000/health
-      - run: curl -fsS -o /dev/null http://localhost:3000/docs
+      - id: up
+        run: |
+          start=$(date +%s)
+          docker compose --profile app up -d --build --wait --wait-timeout 600
+          echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+      - id: health
+        run: curl -fsS http://localhost:3000/health
+      - id: docs
+        run: curl -fsS -o /dev/null http://localhost:3000/docs
+      - name: Summary
+        if: ${{ !cancelled() }}
+        env:
+          UP: ${{ steps.up.outcome }}
+          UP_SECONDS: ${{ steps.up.outputs.seconds }}
+          HEALTH: ${{ steps.health.outcome }}
+          DOCS: ${{ steps.docs.outcome }}
+        run: |
+          icon() { case "$1" in success) echo "✅ success";; failure) echo "❌ failure";; skipped) echo "⏭️ skipped";; *) echo "❔ ${1:-not run}";; esac; }
+          ok=✅; for o in "$UP" "$HEALTH" "$DOCS"; do [ "$o" = success ] || ok=❌; done
+          {
+            echo "## $ok Smoke test: full Docker stack"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| \`docker compose --profile app up --build --wait\`${UP_SECONDS:+ (${UP_SECONDS} s)} | $(icon "$UP") |"
+            echo "| \`GET /health\` | $(icon "$HEALTH") |"
+            echo "| \`GET /docs\` (Swagger) | $(icon "$DOCS") |"
+            echo
+            echo "<details><summary>Containers</summary>"
+            echo
+            echo "| Service | State | Status |"
+            echo "|---|---|---|"
+            docker compose --profile app ps --all --format '| {{.Service}} | {{.State}} | {{.Status}} |' || true
+            echo
+            echo "\`/health\` response: \`$(curl -s --max-time 5 http://localhost:3000/health || echo unreachable)\`"
+            echo
+            echo "</details>"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
       - if: failure()
         run: docker compose --profile app logs --no-color
       - if: always()

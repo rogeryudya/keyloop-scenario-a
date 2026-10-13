@@ -3,7 +3,12 @@ import { TimeSlot } from '../../../shared/domain/time-slot';
 import { AppointmentStatus } from './appointment-status';
 import { ServiceTypeNotSupportedError } from './appointment.errors';
 import { Availability, AvailabilityRequest } from './availability';
-import { BayCandidate, ExistingBooking, TechnicianCandidate } from './resource-allocator';
+import {
+  BayCandidate,
+  ExistingBooking,
+  ResourceAllocator,
+  TechnicianCandidate,
+} from './resource-allocator';
 
 // Bangkok (UTC+7), open 08:00–18:00 local = 01:00Z–11:00Z on 2026-10-13.
 const DEALERSHIP = 'd0000000-0000-4000-8000-000000000001';
@@ -210,6 +215,14 @@ describe('Availability', () => {
 
       expect(run).toThrow(ServiceTypeNotSupportedError);
     });
+  });
+
+  it('does not read an unexpected allocator error as "slot not free"', () => {
+    jest.spyOn(ResourceAllocator, 'allocate').mockImplementationOnce(() => {
+      throw new Error('allocator bug');
+    });
+
+    expect(() => slotsOn()).toThrow('allocator bug');
   });
 
   it('rejects an invalid date', () => {

@@ -33,6 +33,7 @@ pnpm test:int             # integration (Testcontainers Postgres + floci, needs 
 pnpm test:e2e             # API e2e (full app + Testcontainers Postgres)
 pnpm test:cov             # unit tests with coverage
 pnpm test:all             # lint → typecheck → unit → int → e2e (CI also runs format:check, terraform, smoke)
+pnpm load:booking         # load check against a running API: 200 concurrent bookings, no double-booking (docs/design-notes.md)
 pnpm lint                 # eslint (incl. layer boundaries)
 pnpm typecheck            # tsc --noEmit
 pnpm format               # prettier --write (format:check in CI)
