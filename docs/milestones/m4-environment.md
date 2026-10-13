@@ -12,7 +12,7 @@
 - [x] Integration test: credential loading from floci Secrets Manager (incl. missing / malformed secret)
 - [x] Multi-stage Dockerfile (`tools`, `runtime`) + Compose `app` profile: bootstrap → migrate/seed → api
 - [x] CI: add `terraform` and `smoke` jobs per `docs/ci.md`; Dependabot config
-- [ ] Branch protection on `main` with required checks; Bugbot installed with `.cursor/BUGBOT.md`
+- [ ] Branch protection on `main` with required checks (**done 2026-10-13**); Bugbot installed with `.cursor/BUGBOT.md` (pending)
 - [x] Update README quickstart and `CLAUDE.md` commands
 
 ## Acceptance criteria
@@ -27,6 +27,7 @@
 - Task 6: full-stack acceptance verified from a clean state (`down -v` → `--profile app up --build`). floci healthy → bootstrap exits 0 → migrate exits 0 → api healthy; `/health` 200, Swagger 200, `POST /v1/appointments` 201 `CONFIRMED`. A second `up` re-runs both one-shot jobs cleanly. Verified on Podman 5.8.5 (Windows) with `DOCKER_BUILDKIT=0`; the BuildKit path runs in CI (task 7).
 - Task 7: `terraform` and `smoke` jobs plus Dependabot (docker, docker-compose, terraform) checked locally (actionlint, tflint, `compose up --wait` with the one-shot jobs). They haven't run on GitHub yet; the first PR from this branch will exercise them.
 - Task 8 (open): `.cursor/BUGBOT.md` is in the repo. Still pending, and needs the repo owner: (1) branch protection, which GitHub refuses for this private repo on the free plan (`403 Upgrade to GitHub Pro or make this repository public`), so make it public or upgrade first; the required checks also need one CI run on GitHub before they can be selected. (2) Installing the Cursor Bugbot GitHub App, which needs a Cursor account.
+- Task 8 update (2026-10-13): the repo was made public, and branch protection is on (see `docs/ci.md` › Branch protection): a PR is required, the six CI checks must pass and be up to date, there are no force pushes or deletions, and admins are exempt. History was checked first: no secrets or secret files in any commit. Only the Bugbot install remains, which needs the owner's Cursor account.
 - Follow-up: the runtime image is about 560 MB because `prisma` comes in as a resolved peer of `@prisma/client`. OTel env vars for `api` come with tracing in M5.
 - New dependency: `@aws-sdk/client-secrets-manager` (official SDK to read the DB secret; honours a custom endpoint for floci).
 - The old `keyloop_postgres-data` volume from M0–M3 is orphaned; remove it with `docker volume rm keyloop_postgres-data` when you no longer need it.

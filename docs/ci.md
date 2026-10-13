@@ -164,6 +164,15 @@ The repeated setup steps go in a composite action (`.github/actions/setup/action
 - Alternative without a Cursor account: `anthropics/claude-code-action` as a PR-review workflow, using the same rules file content.
 
 ## Branch protection (main)
-- Require a PR to merge (even working solo, so Bugbot and CI run on every change).
-- Required checks: `lint`, `terraform`, `unit`, `integration`, `e2e`, `smoke`.
-- Require branches to be up to date; squash merge with a conventional-commit title.
+Active since 2026-10-13, when the repo was made public; GitHub only offers it on private repos with a paid plan.
+
+- A PR is required to merge (even working solo, so CI runs on every change). It needs 0 approvals, since there is a
+  single maintainer.
+- Required checks: `lint`, `terraform`, `unit`, `integration`, `e2e`, `smoke`, and the branch must be up to date with
+  `main`.
+- No force pushes and no deleting `main`. Admins are exempt (`enforce_admins: false`), so the owner can still
+  override in an emergency.
+- Merge method isn't enforced. Stacked PRs are merged with merge commits so the next PR in the stack keeps only its
+  own commits; PR titles follow conventional commits.
+
+Read it back with `gh api repos/rogeryudya/keyloop-scenario-a/branches/main/protection`.
