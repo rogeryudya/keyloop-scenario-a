@@ -1,11 +1,11 @@
 # M7 — Cloud-ready infrastructure (stretch)
 
-**Status:** `todo`
+**Status:** `in-progress`
 **Goal:** show the API running the way it would in AWS (container image in ECR, ECS Fargate service), provisioned by Terraform against floci.
 **Requirements:** none from the brief; demonstrates production readiness. Only start once M0–M6 are done.
 
 ## Tasks
-- [ ] `infra/modules/ecr`: repository + lifecycle policy
+- [x] `infra/modules/ecr`: repository + lifecycle policy
 - [ ] `infra/modules/network`: VPC, subnets, security groups
 - [ ] `infra/modules/ecs-service`: cluster, task definition (`DB_SECRET_ID`, OTel env), service, ALB, IAM task/execution roles (secret read only), log group
 - [ ] `pnpm infra:ecs`: build `runtime` image → push to floci ECR → apply → wait for healthy
@@ -54,3 +54,4 @@
   - `pnpm infra:ecs` needs an engine-aware push (Podman: `--tls-verify=false`) and should wait on `/health` through
     the ALB, not on target health.
   - Verify the push on Docker Engine before relying on it in CI.
+- Task 1: `infra/modules/ecr` was applied to floci from a throwaway root: the repo and lifecycle policy were created, and mutability, scan-on-push and both lifecycle rules read back as configured. A re-plan was clean and destroy worked. Invalid `image_tag_mutability` and `max_image_count` values are rejected with clear messages. `terraform fmt` and tflint are clean. No env uses the module yet: `envs/local` gets it with `pnpm infra:ecs` (task 4) and `envs/aws-dev` in task 5, so CI's `validate` covers it from then.

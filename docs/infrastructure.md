@@ -73,6 +73,11 @@ resource "aws_secretsmanager_secret_version" "db" {
 ```
 Secret ids: `keyloop/local/db`, `keyloop/docker/db` (see `local-dev/docker-compose.md`).
 
+## `ecr` module contract (M7)
+One private repository for the API image: `aws_ecr_repository` with scan on push, and a lifecycle policy in which untagged images expire after `untagged_expiry_days` (default 1) and only the newest `max_image_count` (default 10) are kept.
+Tags are `IMMUTABLE` by default, so deploys use a unique tag (the git sha) and a tag always means the same image. `force_delete` is for throwaway environments.
+Outputs: `repository_url`, `repository_arn`, `repository_name`, `registry_id`. Full table: `infra/modules/ecr/README.md`.
+
 ## Running Terraform
 Terraform runs **in a container** (`hashicorp/terraform:1.16.5`, Compose service `terraform`, profile `tools`), so nobody needs it installed.
 Its entrypoint is `infra/scripts/terraform.sh`, which runs `init` and then the requested action on `envs/local`:
