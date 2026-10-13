@@ -99,7 +99,7 @@ jobs:
         uses: ./.github/actions/setup
       # json-summary feeds the coverage table on the summary page; lcov and text keep the artifact and log.
       - run: >-
-          pnpm test:cov --json --outputFile=reports/unit.json
+          mkdir -p reports && pnpm test:cov --json --outputFile=reports/unit.json
           --reporters=default --reporters=github-actions
           --coverageReporters=json-summary --coverageReporters=lcov --coverageReporters=text
       - name: Summary
@@ -119,7 +119,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: setup
         uses: ./.github/actions/setup
-      - run: pnpm test:int --json --outputFile=reports/int.json --reporters=default --reporters=github-actions
+      - run: mkdir -p reports && pnpm test:int --json --outputFile=reports/int.json --reporters=default --reporters=github-actions
       - name: Summary
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm -s tsx scripts/ci/summary.ts jest "Integration tests (Testcontainers Postgres + floci)" reports/int.json
@@ -131,7 +131,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: setup
         uses: ./.github/actions/setup
-      - run: pnpm test:e2e --json --outputFile=reports/e2e.json --reporters=default --reporters=github-actions
+      - run: mkdir -p reports && pnpm test:e2e --json --outputFile=reports/e2e.json --reporters=default --reporters=github-actions
       - name: Summary
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm -s tsx scripts/ci/summary.ts jest "API e2e tests" reports/e2e.json

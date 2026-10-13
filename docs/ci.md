@@ -47,7 +47,7 @@ opening logs. Each section still renders when an earlier step failed.
 
 The test jobs also use Jest's `github-actions` reporter, which puts each failure as an annotation on the failing line
 (PR → Files changed). The renderer is `scripts/ci/summary.ts` (pure functions in `summary-render.ts`, unit-tested in
-`test/ci/`). Run it locally to preview: `pnpm test --json --outputFile=reports/unit.json`, then
+`test/ci/`). Run it locally to preview: `mkdir -p reports && pnpm test --json --outputFile=reports/unit.json`, then
 `pnpm tsx scripts/ci/summary.ts jest "Unit tests" reports/unit.json`. Terraform and smoke write their sections in bash,
 because those jobs don't set up Node.
 
