@@ -4,7 +4,7 @@
 #
 # Bookings that succeed send an Idempotency-Key (FR-11), so running this file again replays the same
 # 201 instead of booking twice. Rejected requests change nothing and can be re-sent freely.
-# Scenario 10 (parallel requests) can't be expressed here; README › Try it has a one-line curl version.
+# Scenario 10 (parallel requests) can't be expressed here: run `bash test/http/parallel-booking.sh` instead.
 
 @baseUrl = http://localhost:3000
 # "Tomorrow" in the dealerships' time zone (UTC+7, no daylight saving) = UTC date of now + 7 h + 1 day.

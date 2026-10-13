@@ -1,158 +1,244 @@
 # Keyloop Service Scheduler
 
-Backend for **Scenario A: The Unified Service Scheduler**. A customer asks for a service appointment for a
-vehicle, a service type and a dealership at a chosen time. Before confirming, the API checks that a service
-bay **and** a technician qualified for that service are both free for the whole duration, picks them, and
-stores a confirmed appointment that links customer, vehicle, technician and bay.
+A backend API for **Scenario A: The Unified Service Scheduler**.
 
-- **Correct under concurrency:** two requests can never book the same bay or technician for overlapping
-  times. A Postgres exclusion constraint enforces it, and a bounded retry handles lost races
-  ([ADR-0006](docs/decisions/0006-data-model-double-booking.md)).
-- **Clear rejections:** each failure has its own code, such as `NO_SERVICE_BAY_AVAILABLE`,
-  `NO_TECHNICIAN_AVAILABLE` or `OUTSIDE_OPENING_HOURS` ([API](docs/api.md)).
-- **Beyond the brief, kept small:** an availability query, cancellation, listing with cursor pagination,
-  and an `Idempotency-Key` for safe retries.
-- **Runs like AWS, locally:** Postgres on RDS and credentials in Secrets Manager, emulated by
-  [floci](https://floci.io) and provisioned with Terraform. Traces, logs and metrics go through
-  OpenTelemetry to Grafana.
+A customer asks for a service appointment: *this vehicle, this service, at this dealership, at this time*.
+Before confirming, the API checks that a **service bay** and a **technician qualified for that service** are both
+free for the **whole** duration. It then picks them and saves a confirmed appointment that links the customer,
+vehicle, technician and bay.
 
-Stack: Node 24, TypeScript, NestJS (Clean Architecture + CQRS), PostgreSQL 17 + Prisma, Jest + Testcontainers,
-Terraform, Docker Compose. Design overview: [docs/design-notes.md](docs/design-notes.md).
+**In 30 seconds:**
+- **It never double-books.** Two requests at the same moment can't get the same bay or technician. The database
+  itself enforces this, and a request that loses the race retries automatically.
+- **It says why.** A rejected booking gets a specific code, such as `NO_SERVICE_BAY_AVAILABLE`,
+  `NO_TECHNICIAN_AVAILABLE` or `OUTSIDE_OPENING_HOURS`.
+- **It's small extras, done properly:** an availability query, cancellation, listing with pagination, and safe
+  retries with an `Idempotency-Key`.
+- **It runs like it would on AWS, on your laptop:** Postgres on RDS, credentials in Secrets Manager (emulated by
+  [floci](https://floci.io), created with Terraform), and traces, logs and metrics in Grafana.
 
-## Run it
-Only Docker is needed (Docker Desktop, or Docker Engine with Compose v2).
+**Contents:** [What you need](#what-you-need) · [Start it](#1-start-it) · [Try it](#2-try-it) ·
+[See it in Grafana](#3-see-what-happened-in-grafana) · [15-minute tour](#a-15-minute-tour-for-reviewers) ·
+[How it works](#how-it-works) · [Where the code is](#where-the-code-is) · [Run the tests](#run-the-tests) ·
+[Extras](#extras) · [All docs](#all-docs)
 
+## What you need
+Only **Docker**. You don't need Node, AWS, or anything else installed to run it.
+
+| | Requirement |
+|---|---|
+| **Docker** | Docker Desktop (Windows, macOS) or Docker Engine (Linux) with **Compose v2**, i.e. the `docker compose` command, not the old `docker-compose`. Podman works too (see [If something goes wrong](#if-something-goes-wrong)) |
+| **Memory** | Give Docker at least **4 GB**. The running stack uses about 1 GB; building the images needs more |
+| **Disk** | About **6 GB** free for images (Grafana's all-in-one image alone is 2.7 GB) |
+| **Network** | Internet for the first run: about **3.5 GB** of images to download |
+| **Free ports** | 3000 (API), 3001 (Grafana), 4317–4318 (telemetry), 4566 (AWS emulation), 7001 (Postgres) |
+| **Docker socket** | Must be available to containers: floci starts the Postgres container through it. This is the default in Docker Desktop |
+| **Optional** | Node 24 and pnpm, only to run the tests or work on the code ([Run the tests](#run-the-tests)) |
+
+Tested on Windows 11 (Podman) and Ubuntu (CI, on every pull request). macOS and Apple Silicon have not been tested.
+
+## 1. Start it
 ```bash
-docker compose --profile app up --build
+git clone https://github.com/rogeryudya/keyloop-scenario-a.git
+cd keyloop-scenario-a
+docker compose --profile app up --build -d --wait
 ```
 
-This starts the AWS emulation, creates the database and its secret with Terraform, runs migrations and seed
-data, then starts the API. The first run takes a few minutes: image builds plus about 1.5 minutes of RDS
-provisioning. Later runs are faster.
+**The first run takes about 5 minutes:** downloading images, building the API, then about 1.5 minutes to create
+the database. Later runs take seconds.
 
-| Open | URL |
+What happens, in order:
+1. **floci** starts: the local AWS (RDS + Secrets Manager).
+2. **bootstrap** runs Terraform: it creates the Postgres database and puts its password in Secrets Manager.
+3. **migrate** creates the tables and loads the demo data.
+4. **api** starts, reads its database password from Secrets Manager, and passes its health check.
+
+**It's ready when** the command returns with every container `Healthy` or `Exited` (the two one-off setup jobs),
+and this answers:
+
+```bash
+curl http://localhost:3000/health
+# {"status":"ok","db":"up"}
+```
+
+| Open | Address |
 |---|---|
-| API docs (Swagger) | http://localhost:3000/docs |
-| Health | http://localhost:3000/health |
+| API docs, try requests here (Swagger) | http://localhost:3000/docs |
 | Grafana: traces, logs, metrics | http://localhost:3001 |
-| AWS console (floci): RDS and secrets | http://localhost:4566/_floci/ui |
+| AWS console (floci): the database and its secrets | http://localhost:4566/_floci/ui |
 
-Stop with `Ctrl+C`; remove everything, data included, with `docker compose --profile app down -v`.
+**Stop it:** `docker compose --profile app down`, which keeps the data.
+**Start completely fresh:** `docker compose --profile app down -v`, then the start command again.
+**Watch the API's logs:** `docker compose logs -f api`.
 
-<details><summary>Podman, or the stack doesn't start</summary>
+### If something goes wrong
+- **Podman:** prefix the command: `DOCKER_BUILDKIT=0 docker compose --profile app up --build -d --wait`.
+- **"Port is already allocated":** something else uses one of the ports above. Stop it, or free the port.
+- **It hangs at `bootstrap`, or the database never comes up:** the Docker socket isn't available to containers.
+  Check your Docker settings.
+- **Something else:** `docker compose --profile app ps` shows which step failed, and
+  `docker compose --profile app logs <service>` shows why. More in [docs/local-dev/](docs/local-dev/README.md).
 
-- **Podman:** run `DOCKER_BUILDKIT=0 docker compose --profile app up --build`.
-- **Docker socket:** floci starts the Postgres container through it, so it must be available to containers
-  (the default in Docker Desktop).
-- **Ports in use:** the stack needs 3000, 3001, 4317, 4318, 4566 and 7001.
-- More: [docs/local-dev/](docs/local-dev/README.md).
-</details>
+## 2. Try it
+The demo data has 6 dealerships in Thailand and Vietnam, with their bays and technicians, 10 service types,
+16 customers and 22 vehicles. Demo bookings are always placed **tomorrow** (and the following days), so the
+examples below keep working. All times are local to the dealership, which is UTC+7.
+Details: [prisma/seed/README.md](prisma/seed/README.md).
 
-## Try it
-The seed data has 6 dealerships in Thailand and Vietnam with their bays and technicians, 10 service types,
-16 customers with 22 vehicles, and 24 demo appointments placed **tomorrow and the next days**: 3 drive the
-scenarios below, and the rest fill the calendars of Chiang Mai, Da Nang and Phuket
-([prisma/seed/README.md](prisma/seed/README.md)). Times are local to the dealership, UTC+7.
+**The quickest way: Swagger.** Open http://localhost:3000/docs, choose `POST /v1/appointments`, click *Try it out*,
+and send the example as it is (an oil change at Bangkok on 2030-01-15, 10:00). You get a `201` with the new
+appointment's id. Send it again: another `201`. Send it a third time: `409 NO_TECHNICIAN_AVAILABLE`. Bangkok has
+three bays but only two technicians who do oil changes, and both are now booked at 10:00.
 
-**In Swagger:** open http://localhost:3000/docs, try `POST /v1/appointments` with its example body, and change
-the date to tomorrow.
-
-**With the demo request files:** [test/http/](test/http/) has ready-made requests for the VS Code
-[REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) extension (recommended
-when you open the repo). They fill in tomorrow's date themselves.
+**The guided way: the demo request files.** [test/http/](test/http/) has ready-made requests. Open them in VS Code
+with the [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) extension (VS Code
+suggests it when you open the repo) and click *Send Request* above each one. They fill in tomorrow's date for you.
 
 | File | What it shows |
 |---|---|
-| [booking-scenarios.http](test/http/booking-scenarios.http) | One request per business rule, each with its expected result |
-| [appointment-lifecycle.http](test/http/appointment-lifecycle.http) | Book, idempotent replay, read, list, cancel, rebook the freed slot |
-| [reference-data.http](test/http/reference-data.http) | Dealerships, service types, availability |
-| [parallel-booking.sh](test/http/parallel-booking.sh) | 10 identical bookings at once for a one-bay slot |
+| [booking-scenarios.http](test/http/booking-scenarios.http) | One request per business rule, each with its expected result (the table below) |
+| [appointment-lifecycle.http](test/http/appointment-lifecycle.http) | Book, retry safely, read, list, cancel, then book the freed slot again |
+| [reference-data.http](test/http/reference-data.http) | Dealerships, service types, and free time slots |
+| [parallel-booking.sh](test/http/parallel-booking.sh) | 10 identical bookings at the same moment for a slot with only one bay |
 
 What the booking scenarios show:
 
-| # | Request (tomorrow) | Result | Rule |
+| # | Request (tomorrow) | Result | Why |
 |---|---|---|---|
-| 1 | Somsak, oil change, Bangkok 11:00 | `201`, a bay and a qualified technician assigned | FR-1–3 |
-| 2 | Tuan, oil change, Hanoi 10:00 | `409 NO_SERVICE_BAY_AVAILABLE`: the only bay is taken | BR-7 |
-| 3 | Same at 10:30 | `201`: back-to-back is allowed | BR-2 |
-| 4 | Prasit, transmission repair, Bangkok 09:30 | `409 NO_TECHNICIAN_AVAILABLE`: bays free, the one qualified technician busy | BR-8 |
-| 5 | Same at 10:30 | `201` with that technician | BR-8 |
-| 6 | EV battery check at Hanoi | `422 SERVICE_TYPE_NOT_SUPPORTED` | BR-6 |
-| 7 | Malee with Somsak's car | `422 VEHICLE_NOT_OWNED_BY_CUSTOMER` | BR-5 |
-| 8 | 120-min service at 15:30, closes 17:00 | `422 OUTSIDE_OPENING_HOURS` | BR-4 |
-| 9 | Hanoi 14:00, where a *cancelled* appointment sits | `201` | BR-9 |
-| 10 | 10 parallel requests for one Hanoi slot (`bash test/http/parallel-booking.sh`) | exactly one `201`, the rest `409` | FR-5, BR-10 |
-| 11 | A start time in the past | `422 APPOINTMENT_IN_PAST` | BR-3 |
+| 1 | Somsak books an oil change at Bangkok, 11:00 | `201`: a bay and a qualified technician are assigned | The happy path |
+| 2 | Tuan books an oil change at Hanoi, 10:00 | `409 NO_SERVICE_BAY_AVAILABLE` | Hanoi's only bay is taken |
+| 3 | The same at 10:30 | `201` | Back-to-back bookings are fine |
+| 4 | Prasit books a transmission repair at Bangkok, 09:30 | `409 NO_TECHNICIAN_AVAILABLE` | Bays are free, but the only qualified technician is busy |
+| 5 | The same at 10:30 | `201`, with that technician | The technician is free from 10:30 |
+| 6 | An EV battery check at Hanoi | `422 SERVICE_TYPE_NOT_SUPPORTED` | Nobody there is qualified |
+| 7 | Malee books with Somsak's car | `422 VEHICLE_NOT_OWNED_BY_CUSTOMER` | You can only book your own vehicle |
+| 8 | A 2-hour service at 15:30, closing at 17:00 | `422 OUTSIDE_OPENING_HOURS` | It would end after closing |
+| 9 | Hanoi at 14:00, where a *cancelled* booking sits | `201` | Cancelled bookings free their slot |
+| 10 | 10 requests at once for one Hanoi slot (`bash test/http/parallel-booking.sh`) | One `201`, nine `409` | No double-booking under load |
+| 11 | A start time in the past | `422 APPOINTMENT_IN_PAST` | |
 
-Successful scenario bookings carry an `Idempotency-Key`, so running the file again replays them instead of
-booking twice. If the stack runs past midnight in Bangkok, re-seed to move the demo appointments to the new
-"tomorrow": `docker compose --profile app run --rm migrate`. For a completely fresh start, use
-`docker compose --profile app down -v`, then `up` again.
+Running the scenarios file twice is safe: successful bookings carry an `Idempotency-Key`, so they are replayed,
+not booked again. If you keep the stack running past midnight in Bangkok, move the demo bookings to the new
+"tomorrow" with `docker compose --profile app run --rm migrate`.
 
-### See it in Grafana
-Every response has an `x-request-id` header. In Grafana (http://localhost:3001) → **Explore**:
+## 3. See what happened in Grafana
+Open http://localhost:3001 and go to **Explore**. Every API response has an `x-request-id` header you can search for.
 
-- **Tempo:** `{span.outcome="conflict"}` lists rejected bookings. A trace shows the request, the use case with its
-  outcome and error code, and every SQL statement.
-- **Loki:** `{service_name="keyloop-api"} | request_id="<id>"` finds a request's log line, with its `trace_id`.
-- **Prometheus:** `appointments_created_total`, `appointment_rejections_total` by `reason`, request latency.
+| Data source | Try | You see |
+|---|---|---|
+| **Tempo** (traces) | `{span.outcome="conflict"}` | Each rejected booking: the request, the use case with its reason, and every SQL query, with timings |
+| **Loki** (logs) | `{service_name="keyloop-api"} \| request_id="<the id>"` | That request's log line, with a `trace_id` that leads to its trace |
+| **Prometheus** (metrics) | `appointment_rejections_total` | Rejections counted by reason; also `appointments_created_total` and request latency |
 
 More queries: [docs/local-dev/observability.md](docs/local-dev/observability.md).
 
+## A 15-minute tour for reviewers
+1. **Start it** ([step 1](#1-start-it)) and open Swagger. *2 min, plus the first-run wait.*
+2. **Book scenario 1, then scenario 2** from [booking-scenarios.http](test/http/booking-scenarios.http) (or in
+   Swagger). Note the `201`, then the `409 NO_SERVICE_BAY_AVAILABLE`. *2 min*
+3. **Run `bash test/http/parallel-booking.sh`.** Ten requests race for one slot: one wins, nine get `409`. *1 min*
+4. **Open the rejected booking's trace** in Grafana (Tempo, `{span.outcome="conflict"}`). You can see the check,
+   the reason, and the SQL. *2 min*
+5. **Read [How it works](#how-it-works)** below, then the three files that matter most: the booking handler, the
+   allocator and the database constraint ([Where the code is](#where-the-code-is)). *5 min*
+6. **Skim [docs/design-notes.md](docs/design-notes.md)** for the trade-offs, assumptions and what I'd do next. *3 min*
+
+## How it works
+```
+POST /v1/appointments
+  │  1. Validate the request (shape, ids, ISO time with offset)            → 400 if malformed
+  ▼
+CreateAppointment handler, in ONE database transaction:
+  │  2. Known Idempotency-Key? → return the original booking
+  │  3. Dealership, service, customer and vehicle exist?                   → 404
+  │  4. Vehicle belongs to the customer? Start in the future?
+  │     Fits opening hours?                                                → 422
+  │  5. Allocator: nobody here does this service?                          → 422
+  │     Pick a free bay and a free qualified technician                    → 409 if none
+  │  6. INSERT the appointment
+  ▼
+Postgres exclusion constraint: no two confirmed bookings may overlap on the same bay or technician.
+  If a parallel request got there first, the insert fails → retry from step 2 (up to 3 times).
+```
+
+- **Why the database has the final say:** checking in code alone has a race. Two requests can both see "bay 1 is
+  free" and both book it. The exclusion constraint makes the second insert fail, whatever code path wrote it.
+- **How resources are picked:** the lowest-id free bay, and the free qualified technician with the fewest bookings
+  that day. Same input, same result, so it's easy to test and explain.
+- **Availability** (`GET /v1/dealerships/:id/availability`) runs the same allocator for every 15-minute slot of a
+  day, so a slot it lists can really be booked.
+
+The full story, with trade-offs: [docs/design-notes.md](docs/design-notes.md).
+
+## Where the code is
+Each feature module has the same four layers: `domain` (business rules, plain TypeScript), `application` (use
+cases), `infrastructure` (database) and `presentation` (HTTP). Dependencies only point inward, towards `domain`,
+and a lint rule fails the build if they don't.
+
+| What | File |
+|---|---|
+| The booking use case: checks, allocation, insert, retry | [create-appointment.handler.ts](src/modules/appointments/application/commands/create-appointment/create-appointment.handler.ts) |
+| Picking a bay and a technician | [resource-allocator.ts](src/modules/appointments/domain/resource-allocator.ts) |
+| Free time slots for a day | [availability.ts](src/modules/appointments/domain/availability.ts) |
+| The appointment and its rules (future start, opening hours, cancel) | [appointment.entity.ts](src/modules/appointments/domain/appointment.entity.ts) |
+| Time intervals and opening hours in the dealership's time zone | [time-slot.ts](src/shared/domain/time-slot.ts), [opening-hours.ts](src/shared/domain/opening-hours.ts) |
+| The no-double-booking constraint in the database | [m1_constraints/migration.sql](prisma/migrations/20261012041657_m1_constraints/migration.sql) |
+| Turning a lost race into a retry | [prisma-appointment.repository.ts](src/modules/appointments/infrastructure/prisma-appointment.repository.ts) |
+| The HTTP endpoints | [appointment.controller.ts](src/modules/appointments/presentation/appointment.controller.ts) |
+| Errors → one consistent JSON format | [global-exception.filter.ts](src/shared/presentation/filters/global-exception.filter.ts) |
+| Proof that parallel bookings never collide (real Postgres) | [create-appointment.int-spec.ts](test/concurrency/create-appointment.int-spec.ts) |
+
+How a request travels through the layers: [docs/architecture/request-flow.md](docs/architecture/request-flow.md).
+Where every kind of file goes: [docs/architecture/folder-structure.md](docs/architecture/folder-structure.md).
+
 ## Run the tests
-Needs Node 24 and pnpm (`corepack enable`). Integration and e2e tests start their own Postgres with
-Testcontainers, so Docker must be running; they don't need the Compose stack.
+Needs **Node 24** and **pnpm** (`corepack enable` installs pnpm). The integration and end-to-end tests start their
+own Postgres with Testcontainers, so Docker must be running. They don't need the stack from step 1.
 
 ```bash
 pnpm install
-pnpm test          # unit: business rules, handlers (no Docker)
-pnpm test:int      # integration: real Postgres + floci, incl. parallel booking races
-pnpm test:e2e      # the HTTP API against the real app
-pnpm test:all      # lint → typecheck → unit → integration → e2e
-pnpm load:booking  # 200 concurrent bookings against a running stack; checks nothing is double-booked
+pnpm test          # unit tests: business rules and use cases (no Docker, ~30 s)
+pnpm test:int      # integration: real Postgres, including parallel booking races
+pnpm test:e2e      # end to end: the HTTP API against the real app
+pnpm test:all      # all of the above, plus lint and type checks
 ```
 
-CI runs the same checks plus a full-stack smoke test on every pull request ([docs/ci.md](docs/ci.md)). Domain
-and application code must keep at least 90% coverage per folder.
+GitHub runs all of these on every pull request, plus a test that starts the full Docker stack from scratch
+([docs/ci.md](docs/ci.md)). Business rules and use cases must keep at least 90% test coverage.
 
-## Optional: run it on ECS
-The same API can run the way it would in AWS: an image in ECR, an ECS Fargate service behind a load balancer, all
-created by Terraform against floci. It needs Node and pnpm for the script, plus Docker; the stack from "Run it" can
-be running or not. On Podman, prefix `DOCKER_BUILDKIT=0`.
+## Extras
+**A load check.** With the stack running, `pnpm load:booking` sends 200 bookings at once and checks that nothing is
+double-booked. Results and analysis: [docs/design-notes.md › Load check](docs/design-notes.md#load-check-m5).
 
-```bash
-pnpm install
-pnpm infra:ecs        # about 5 minutes the first time → http://localhost:8080/docs
-pnpm infra:ecs:down   # remove it again
-```
+**Run it the AWS way, on ECS.** `pnpm infra:ecs` builds the image, pushes it to a local ECR, and runs it as an ECS
+Fargate service behind a load balancer, all with Terraform against floci (about 5 minutes; Podman: prefix
+`DOCKER_BUILDKIT=0`). Then open http://localhost:8080/docs. Remove it with `pnpm infra:ecs:down`. It needs Node and
+pnpm too, and port 8080. What this proves, and what it can't:
+[docs/design-notes.md › Running on ECS](docs/design-notes.md#running-on-ecs-m7).
 
-What this does and doesn't prove: [design-notes.md › Running on ECS](docs/design-notes.md#running-on-ecs-m7).
-floci's web console doesn't show ECS, ECR or load balancers yet; the script prints what it created.
-
-## Develop
-To run the API on your machine with hot reload, against the same floci and Grafana containers:
+**Work on the code** with hot reload, running the API on your machine against the same Docker services:
 
 ```bash
 pnpm install
-cp .env.example .env      # local config; no real secrets
-docker compose up -d      # floci, otel-lgtm
-pnpm infra:up             # Terraform in Docker → RDS + DB secrets (idempotent)
+cp .env.example .env      # local settings; no real secrets
+docker compose up -d      # floci and Grafana only
+pnpm infra:up             # create the database and its secret (Terraform, in Docker)
 pnpm db:migrate && pnpm db:seed
 pnpm start:dev            # http://localhost:3000/docs
 ```
 
 Project rules for contributors and AI assistants: [CLAUDE.md](CLAUDE.md).
 
-## Docs
-| Topic | Where |
+## All docs
+| I want to… | Read |
 |---|---|
-| Design overview: architecture, allocation, double-booking, trade-offs | [docs/design-notes.md](docs/design-notes.md) |
-| Requirements, business rules, assumptions, open questions | [docs/requirements.md](docs/requirements.md) |
-| API reference and error codes | [docs/api.md](docs/api.md) (Swagger at `/docs`) |
-| Architecture and layer rules | [docs/architecture/](docs/architecture/README.md) |
-| Decisions (ADRs) | [docs/decisions/](docs/decisions/) |
-| Data model | [docs/data-dictionary.md](docs/data-dictionary.md) |
-| Local environment, AWS emulation, observability | [docs/local-dev/](docs/local-dev/README.md) |
-| Testing strategy | [docs/testing/](docs/testing/README.md) |
-| CI and infrastructure | [docs/ci.md](docs/ci.md), [docs/infrastructure.md](docs/infrastructure.md) |
-| Progress by milestone | [docs/milestones/](docs/milestones/README.md) |
+| Read the original brief, the business rules and the assumptions I made | [docs/requirements.md](docs/requirements.md) |
+| Understand the design, the trade-offs and what's next | [docs/design-notes.md](docs/design-notes.md) |
+| See every endpoint and error code | [docs/api.md](docs/api.md), or Swagger at `/docs` |
+| Understand the architecture and its layer rules | [docs/architecture/](docs/architecture/README.md) |
+| See why each big decision was made (ADRs) | [docs/decisions/](docs/decisions/) |
+| See the database tables and constraints | [docs/data-dictionary.md](docs/data-dictionary.md) |
+| Run things locally, or debug the local AWS and Grafana | [docs/local-dev/](docs/local-dev/README.md) |
+| Understand the testing strategy | [docs/testing/](docs/testing/README.md) |
+| See the CI pipeline and the Terraform | [docs/ci.md](docs/ci.md), [docs/infrastructure.md](docs/infrastructure.md) |
+| Follow how the project was built, milestone by milestone | [docs/milestones/](docs/milestones/README.md) |

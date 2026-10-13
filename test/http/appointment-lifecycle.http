@@ -3,7 +3,7 @@
 # the id from step 1, so send them in order.
 # Uses Hanoi at 15:00 tomorrow: Hanoi has one bay, so a cancellation visibly frees the slot.
 # Meant to run once per day. On a second run, steps 1-2 replay the first booking and step 10 gets 409,
-# because the first run's step 10 holds the slot. README › Try it explains how to reset.
+# because the first run's step 10 holds the slot. For a fresh start, see README › Start it.
 # Needs a running API with seed data: `docker compose --profile app up --build` (see README › Try it).
 
 @baseUrl = http://localhost:3000
