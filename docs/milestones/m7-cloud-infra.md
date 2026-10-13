@@ -7,7 +7,7 @@
 ## Tasks
 - [x] `infra/modules/ecr`: repository + lifecycle policy
 - [x] `infra/modules/network`: VPC, subnets, security groups
-- [ ] `infra/modules/ecs-service`: cluster, task definition (`DB_SECRET_ID`, OTel env), service, ALB, IAM task/execution roles (secret read only), log group
+- [x] `infra/modules/ecs-service`: cluster, task definition (`DB_SECRET_ID`, OTel env), service, ALB, IAM task/execution roles (secret read only), log group
 - [ ] `pnpm infra:ecs`: build `runtime` image → push to floci ECR → apply → wait for healthy
 - [ ] `envs/aws-dev` wires all modules; passes `terraform validate` (never applied)
 - [ ] Design notes: what floci proves vs what it can't (IAM enforcement, real networking, scaling)
@@ -58,3 +58,9 @@
 - Task 2: `infra/modules/network` was applied to floci with the NAT gateway on: all 26 resources (VPC, IGW, 4 subnets, route tables, EIP + NAT, 3 SGs with 6 rules, DB subnet group) in 19 s. Destroy worked, and fmt and tflint are clean.
   - **Gotcha for task 4:** with `skip_requesting_account_id = true` (set in `envs/local` today), the four rules that reference another security group show a diff on every plan. floci returns the reference as `000000000000/sg-…`, and the provider only strips the prefix when it knows its own account id. Without the flag (floci STS answers `GetCallerIdentity`), the re-plan is clean.
   - Removing the flag on an **existing** state fails with `Unexpected Identity Change`. Task 4 must handle that for existing `tf-state` volumes: recreate, or move the ECS stack to its own root/state.
+- Task 3: `infra/modules/ecs-service` was tested on floci together with `network` and `ecr` (ECR applied first, image pushed, then the rest):
+  - 34 resources in 79 s; `/health` through the ALB returned `db: up` about 25 s later; the re-plan was clean.
+  - The task had exactly the intended environment. `DB_SECRET_ID` is the secret **ARN**, and floci resolved it.
+  - Logs reached CloudWatch, and traces reached Tempo under the service name.
+  - Redeploying a new image tag created task definition revision 2 and rolled the service (`COMPLETED`). floci stops the old task first, so there was about 10 s of 503; AWS keeps the old task until the new one is healthy.
+  - Destroy removed all 36 resources (34 + the 2 ECR ones). fmt and tflint are clean.

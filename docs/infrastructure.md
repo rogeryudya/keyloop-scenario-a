@@ -84,6 +84,12 @@ Security groups chain hop by hop: internet → ALB (listener port) → tasks (ap
 It also creates an RDS subnet group for the `database` module. `enable_nat_gateway` (default off, it costs money) gives private tasks a route to ECR, Secrets Manager and Logs in real AWS.
 Outputs: VPC, subnet and security group ids, and `db_subnet_group_name`. Full table: `infra/modules/network/README.md`.
 
+## `ecs-service` module contract (M7)
+ECS Fargate service behind an ALB: cluster, task definition, service (private subnets, deployment circuit breaker with rollback), ALB with IP target group and HTTP listener, CloudWatch log group, and IAM roles.
+The **execution role** pulls the image and writes logs; the **task role**, which the app runs as, may only read the DB secret.
+The container gets `DB_SECRET_ID` (the secret ARN), `AWS_REGION`, the OTel settings and any extra environment, such as floci's endpoint locally.
+Outputs: `alb_url`, cluster/service names, task definition ARN, log group, role ARNs. Full table: `infra/modules/ecs-service/README.md`.
+
 ## Running Terraform
 Terraform runs **in a container** (`hashicorp/terraform:1.16.5`, Compose service `terraform`, profile `tools`), so nobody needs it installed.
 Its entrypoint is `infra/scripts/terraform.sh`, which runs `init` and then the requested action on `envs/local`:
