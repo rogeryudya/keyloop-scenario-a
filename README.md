@@ -49,8 +49,9 @@ Stop with `Ctrl+C`; remove everything, data included, with `docker compose --pro
 </details>
 
 ## Try it
-The seed data has 3 dealerships in Thailand and Vietnam, their bays and technicians, 6 customers with
-8 vehicles, and 3 demo appointments placed **tomorrow** so the scenarios below always work
+The seed data has 6 dealerships in Thailand and Vietnam with their bays and technicians, 10 service types,
+16 customers with 22 vehicles, and 24 demo appointments placed **tomorrow and the next days**: 3 drive the
+scenarios below, and the rest fill the calendars of Chiang Mai, Da Nang and Phuket
 ([prisma/seed/README.md](prisma/seed/README.md)). Times are local to the dealership, UTC+7.
 
 **In Swagger:** open http://localhost:3000/docs, try `POST /v1/appointments` with its example body, and change
@@ -113,6 +114,20 @@ pnpm load:booking  # 200 concurrent bookings against a running stack; checks not
 
 CI runs the same checks plus a full-stack smoke test on every pull request ([docs/ci.md](docs/ci.md)). Domain
 and application code must keep at least 90% coverage per folder.
+
+## Optional: run it on ECS
+The same API can run the way it would in AWS: an image in ECR, an ECS Fargate service behind a load balancer, all
+created by Terraform against floci. It needs Node and pnpm for the script, plus Docker; the stack from "Run it" can
+be running or not. On Podman, prefix `DOCKER_BUILDKIT=0`.
+
+```bash
+pnpm install
+pnpm infra:ecs        # about 5 minutes the first time → http://localhost:8080/docs
+pnpm infra:ecs:down   # remove it again
+```
+
+What this does and doesn't prove: [design-notes.md › Running on ECS](docs/design-notes.md#running-on-ecs-m7).
+floci's web console doesn't show ECS, ECR or load balancers yet; the script prints what it created.
 
 ## Develop
 To run the API on your machine with hot reload, against the same floci and Grafana containers:

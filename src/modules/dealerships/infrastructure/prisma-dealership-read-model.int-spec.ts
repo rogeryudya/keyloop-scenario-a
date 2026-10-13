@@ -17,6 +17,9 @@ import { PrismaDealershipReadModel } from './prisma-dealership-read-model';
 const BANGKOK = '10000000-0000-4000-8000-000000000001';
 const HCMC = '10000000-0000-4000-8000-000000000002';
 const HANOI = '10000000-0000-4000-8000-000000000003';
+const CHIANG_MAI = '10000000-0000-4000-8000-000000000004';
+const DA_NANG = '10000000-0000-4000-8000-000000000005';
+const PHUKET = '10000000-0000-4000-8000-000000000006';
 
 describe('PrismaDealershipReadModel (int)', () => {
   let context: INestApplicationContext;
@@ -44,8 +47,8 @@ describe('PrismaDealershipReadModel (int)', () => {
     it('returns dealerships newest first, id DESC as tiebreaker, with HH:mm opening hours', async () => {
       const rows = await readModel.listDealerships({ take: 10 });
 
-      expect(rows.map((d) => d.id)).toEqual([HANOI, HCMC, BANGKOK]);
-      expect(rows[2]).toMatchObject({
+      expect(rows.map((d) => d.id)).toEqual([PHUKET, DA_NANG, CHIANG_MAI, HANOI, HCMC, BANGKOK]);
+      expect(rows[5]).toMatchObject({
         name: 'Keyloop Motors Bangkok',
         timeZone: 'Asia/Bangkok',
         opensAt: '08:00',
@@ -59,7 +62,7 @@ describe('PrismaDealershipReadModel (int)', () => {
 
       const rest = await readModel.listDealerships({ after: first, take: 10 });
 
-      expect(rest.map((d) => d.id)).toEqual([HCMC, BANGKOK]);
+      expect(rest.map((d) => d.id)).toEqual([DA_NANG, CHIANG_MAI, HANOI, HCMC, BANGKOK]);
     });
 
     it('orders by createdAt before id', async () => {
@@ -70,7 +73,7 @@ describe('PrismaDealershipReadModel (int)', () => {
 
       const rows = await readModel.listDealerships({ take: 10 });
 
-      expect(rows.map((d) => d.id)).toEqual([BANGKOK, HANOI, HCMC]);
+      expect(rows.map((d) => d.id)).toEqual([BANGKOK, PHUKET, DA_NANG, CHIANG_MAI, HANOI, HCMC]);
       await prisma.dealership.update({
         where: { id: BANGKOK },
         data: { createdAt: rows[1]?.createdAt ?? new Date() },
@@ -99,12 +102,15 @@ describe('PrismaDealershipReadModel (int)', () => {
 
   describe('listServiceTypes', () => {
     it('pages through all service types with keyset positions', async () => {
-      const first = await readModel.listServiceTypes({ take: 4 });
+      const first = await readModel.listServiceTypes({ take: 5 });
       const last = first.at(-1);
       if (!last) throw new Error('seeded');
-      const second = await readModel.listServiceTypes({ after: last, take: 4 });
+      const second = await readModel.listServiceTypes({ after: last, take: 5 });
 
       expect([...first, ...second].map((s) => s.code)).toEqual([
+        'PRE_PURCHASE_INSPECTION',
+        'WHEEL_ALIGNMENT',
+        'AIR_CONDITIONING',
         'TRANSMISSION_REPAIR',
         'DIAGNOSTICS',
         'EV_BATTERY_CHECK',
@@ -114,10 +120,10 @@ describe('PrismaDealershipReadModel (int)', () => {
         'OIL_CHANGE',
       ]);
       expect(first[0]).toMatchObject({
-        id: '40000000-0000-4000-8000-000000000007',
-        code: 'TRANSMISSION_REPAIR',
-        name: 'Transmission repair',
-        durationMinutes: 180,
+        id: '40000000-0000-4000-8000-000000000010',
+        code: 'PRE_PURCHASE_INSPECTION',
+        name: 'Pre-purchase inspection',
+        durationMinutes: 90,
       });
       expect(first[0]?.createdAt).toBeInstanceOf(Date);
     });

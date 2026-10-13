@@ -11,7 +11,7 @@ without an AWS account or paid tooling. Automated tests must stay fast and runna
 ## Decision
 - **Local run:** API on the host; floci (MIT, no auth token) emulates RDS (real Postgres) and Secrets Manager. The app resolves DB credentials from Secrets Manager via `DB_SECRET_ID`; `AWS_ENDPOINT_URL` points the SDK at floci.
 - **Automated tests:** Testcontainers Postgres (same major version) with `DATABASE_URL` injected; one integration test covers the Secrets Manager path against floci.
-- **Observability:** OpenTelemetry instrumentation; local export to `grafana/otel-lgtm`. Datadog is an optional Compose profile (agent + OTLP ingest), requiring the developer's own API key.
+- **Observability:** OpenTelemetry instrumentation; local export to `grafana/otel-lgtm`. Datadog is an optional Compose profile (agent + OTLP ingest), requiring the developer's own API key. *Update (2026-10-13): the Datadog profile was removed; it needed a personal key and was never verified. Production can still send OTLP to a Datadog Agent or any other OTLP backend by configuration.*
 - **External HTTP:** WireMock (Compose for local run, Testcontainers for tests), only if the brief has external dependencies.
 
 ## Alternatives considered
@@ -27,4 +27,4 @@ Provisioning of RDS + secrets moved from an SDK bootstrap script to Terraform; s
 ## Consequences
 - Two DB credential modes (`DB_SECRET_ID` or `DATABASE_URL`), handled in one provider; startup fails if neither is set.
 - Local setup needs Docker with socket access for floci, plus a one-off bootstrap step.
-- Datadog dashboards can't be shown without an account; Grafana is the default demo.
+- Grafana (otel-lgtm) is the only local telemetry backend; other backends are a deployment setting (`OTEL_EXPORTER_OTLP_ENDPOINT`).

@@ -1,15 +1,7 @@
 # Observability (local and beyond)
 
 ## Decision in one line
-Instrument with **OpenTelemetry** (vendor-neutral). Locally, export to **Grafana LGTM** (free, no account). In a real deployment the same telemetry can go to **Datadog** through the Datadog Agent's OTLP ingest, with no code change.
-
-## Can we use Datadog locally?
-Yes, but it is **not fully local**:
-- Run the `datadog/agent` container next to the app, and the app sends traces to it (`dd-trace` or OTLP).
-- The agent forwards everything to Datadog SaaS, so you need a Datadog account and `DD_API_KEY` (a trial works), and you view data in the Datadog web UI, not on localhost.
-- Fine for demonstrating Datadog dashboards/APM. Not suitable as the default dev loop or for reviewers who don't have an account.
-
-So: default to OTel + LGTM. Datadog is an optional Compose profile (`docker compose --profile datadog up -d`) that you enable with your own `DD_API_KEY`.
+Instrument with **OpenTelemetry** (vendor-neutral). Locally, export to **Grafana LGTM** (free, no account).
 
 ## Local stack
 ```yaml
@@ -22,44 +14,12 @@ So: default to OTel + LGTM. Datadog is an optional Compose profile (`docker comp
 ```
 Grafana includes Tempo (traces), Loki (logs) and Prometheus (metrics), pre-wired.
 
-Optional Datadog profile (the real file is the root `docker-compose.yml`):
-```yaml
-  datadog-agent:
-    image: datadog/agent:7.83.3
-    profiles: ["datadog"]
-    environment:
-      DD_API_KEY: ${DD_API_KEY:-}            # yours; the agent won't forward without it
-      DD_SITE: ${DD_SITE:-datadoghq.com}     # e.g. datadoghq.eu, us5.datadoghq.com
-      DD_ENV: local
-      DD_APM_ENABLED: "true"
-      DD_LOGS_ENABLED: "true"
-      DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT: 0.0.0.0:4318
-      DD_OTLP_CONFIG_LOGS_ENABLED: "true"
-    ports: ["4319:4318"]                     # otel-lgtm owns host 4318
-```
-
-### Send telemetry to Datadog
-The app code doesn't change; only the OTLP endpoint does. Traces, metrics and logs all go through the agent's OTLP receiver.
-
-```bash
-# Full stack in Docker
-export DD_API_KEY=<your key>   DD_SITE=datadoghq.com   # trial account works
-OTEL_EXPORTER_OTLP_ENDPOINT_DOCKER=http://datadog-agent:4318 \
-  docker compose --profile app --profile datadog up --build -d
-
-# Dev mode (API on the host): set in .env, then restart the API
-#   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4319
-DD_API_KEY=<your key> docker compose --profile datadog up -d datadog-agent
-```
-Then in Datadog: **APM → Traces** (`service:keyloop-api`, `env:local`), **Logs** (`service:keyloop-api`, then use the
-`trace_id` to jump to the trace), **Metrics → Explorer** (`appointment_rejections` by `reason`). Switch back by
-dropping the variable: `docker compose --profile app up -d api`.
-
-`OTEL_EXPORTER_OTLP_ENDPOINT_DOCKER` is a separate variable on purpose: Compose reads `.env` for substitution, and
-the host value there (`localhost:4318`) would be wrong inside the container.
-
-Verified locally with a dummy key (the full trial-key check is still pending, see M5 notes): the agent's OTLP
-receiver runs, the app exports to it without errors, and the agent tries to forward the logs (403 with the dummy key).
+## Production backends
+The app only speaks OTLP, so the same traces, logs and metrics can go to any OTLP backend with **no code change**:
+set `OTEL_EXPORTER_OTLP_ENDPOINT` to its collector. Examples are a Datadog Agent with OTLP ingest, Grafana Cloud, or
+the AWS Distro for OpenTelemetry. `envs/aws-dev` exposes this as `otel_exporter_otlp_endpoint`. Nothing beyond
+otel-lgtm is part of the local stack. An optional Datadog Agent profile existed in M5, but it needed a personal API key
+and was never verified, so it was removed.
 
 ## What we instrument
 | Signal | How | What you see |

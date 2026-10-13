@@ -22,6 +22,7 @@ pnpm install              # install deps (postinstall runs prisma generate)
 cp .env.example .env      # local config (DB_SECRET_ID + floci), validated at startup
 docker compose up -d      # dev deps: floci (RDS + Secrets Manager), otel-lgtm
 pnpm infra:up             # Terraform (in Docker) → RDS + DB secrets in floci; also infra:plan, infra:down
+pnpm infra:ecs            # M7: build → push to floci ECR → ECS Fargate + ALB → http://localhost:8080 (infra:ecs:down removes it)
 pnpm db:migrate           # prisma migrate deploy; db:* resolve DB_SECRET_ID (or DATABASE_URL) first
 pnpm db:migrate:dev       # create a new migration: pnpm db:migrate:dev --name <change>
 pnpm db:seed              # load prisma/seed/data.json (idempotent; demo appointments = tomorrow)

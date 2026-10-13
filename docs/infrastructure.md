@@ -42,9 +42,20 @@ No `endpoints {}` block: the endpoint comes from `AWS_ENDPOINT_URL` (`http://loc
 **State:** local backend with `path = "state/terraform.tfstate"` in `envs/local`. The `state/` folder is git-ignored and mounted as the `tf-state` Docker volume when run via Compose, so state survives container runs. `aws-dev` declares an S3 backend with S3-native locking (`use_lockfile`; DynamoDB lock tables are deprecated) but is never initialised against real AWS in this project.
 
 ## `envs/aws-dev` (real-AWS shape)
-Same `database` module, no floci flags, credentials from the standard AWS chain. It takes an existing DB subnet group
-and security groups as variables (`terraform.tfvars.example`); the network module that would create them is M7.
-`secret_hosts` stays empty, so the app's secret is `keyloop-dev/db` holding the real instance address.
+The same modules as the floci envs, wired for real AWS, with no floci flags and credentials from the standard AWS chain:
+
+- **`network`:** the first two AZs of the region, public and private subnets, and a NAT gateway (private tasks need a
+  route to ECR, Secrets Manager and Logs).
+- **`database`:** RDS in the network module's private subnet group and DB security group. `secret_hosts` stays empty,
+  so the app's secret is `keyloop-dev/db` holding the real instance address.
+- **`ecr`:** `IMMUTABLE` tags.
+- **`ecs-service`:** 2 tasks in private subnets behind an ALB on port 80, `wait_for_steady_state`. The task role reads
+  the DB secret, so there are no keys and no endpoint override in the task. OTel is off unless
+  `otel_exporter_otlp_endpoint` is set (e.g. a Datadog Agent or ADOT collector).
+
+The only required input is `image_tag`, set by a deploy pipeline (`terraform.tfvars.example`). Outputs: `api_url`,
+`repository_url`, cluster/service, log group, DB endpoint and secret ARN. It is never applied in this project. Besides
+CI's `validate`, a full `plan` was run against floci (43 resources), with a local backend in a scratch copy.
 Validate without AWS access:
 `docker compose run --rm --no-deps -e TF_DATA_DIR=/tmp/tf -w /infra/envs/aws-dev --entrypoint sh terraform -c 'terraform init -backend=false && terraform validate'`
 (a separate `TF_DATA_DIR`, so it doesn't share the `tf-data` volume with `envs/local`).
@@ -73,6 +84,23 @@ resource "aws_secretsmanager_secret_version" "db" {
 ```
 Secret ids: `keyloop/local/db`, `keyloop/docker/db` (see `local-dev/docker-compose.md`).
 
+## `ecr` module contract (M7)
+One private repository for the API image: `aws_ecr_repository` with scan on push, and a lifecycle policy in which untagged images expire after `untagged_expiry_days` (default 1) and only the newest `max_image_count` (default 10) are kept.
+Tags are `IMMUTABLE` by default, so deploys use a unique tag (the git sha) and a tag always means the same image. `force_delete` is for throwaway environments.
+Outputs: `repository_url`, `repository_arn`, `repository_name`, `registry_id`. Full table: `infra/modules/ecr/README.md`.
+
+## `network` module contract (M7)
+A VPC with public subnets (ALB, NAT gateway) and private subnets (ECS tasks, RDS), one of each per AZ.
+Security groups chain hop by hop: internet → ALB (listener port) → tasks (app port, from the ALB only) → RDS (Postgres, from the tasks only).
+It also creates an RDS subnet group for the `database` module. `enable_nat_gateway` (default off, it costs money) gives private tasks a route to ECR, Secrets Manager and Logs in real AWS.
+Outputs: VPC, subnet and security group ids, and `db_subnet_group_name`. Full table: `infra/modules/network/README.md`.
+
+## `ecs-service` module contract (M7)
+ECS Fargate service behind an ALB: cluster, task definition, service (private subnets, deployment circuit breaker with rollback), ALB with IP target group and HTTP listener, CloudWatch log group, and IAM roles.
+The **execution role** pulls the image and writes logs; the **task role**, which the app runs as, may only read the DB secret.
+The container gets `DB_SECRET_ID` (the secret ARN), `AWS_REGION`, the OTel settings and any extra environment, such as floci's endpoint locally.
+Outputs: `alb_url`, cluster/service names, task definition ARN, log group, role ARNs. Full table: `infra/modules/ecs-service/README.md`.
+
 ## Running Terraform
 Terraform runs **in a container** (`hashicorp/terraform:1.16.5`, Compose service `terraform`, profile `tools`), so nobody needs it installed.
 Its entrypoint is `infra/scripts/terraform.sh`, which runs `init` and then the requested action on `envs/local`:
@@ -82,6 +110,7 @@ Its entrypoint is `infra/scripts/terraform.sh`, which runs `init` and then the r
 | `pnpm infra:up` | `docker compose run --rm terraform up` → `init` + `apply -auto-approve` |
 | `pnpm infra:plan` | same, `plan` only |
 | `pnpm infra:down` | `destroy -auto-approve` |
+| `pnpm infra:ecs` / `infra:ecs:down` | M7: build, push and deploy the API to ECS on floci / destroy it (`envs/local-ecs`, `ecs-*` actions; see below) |
 
 - Providers are downloaded into the `tf-data` volume (`TF_DATA_DIR`), not into the bind-mounted source tree. State lives in the `tf-state` volume.
 - `.terraform.lock.hcl` is committed with hashes for linux/darwin (amd64 + arm64) and windows_amd64. To refresh it:
@@ -92,13 +121,33 @@ Its entrypoint is `infra/scripts/terraform.sh`, which runs `init` and then the r
 In full-stack Compose mode, the `bootstrap` service is this same Terraform container (see `local-dev/docker-compose.md`).
 
 ## M7: ECS on floci (stretch)
-Flow, scripted as `pnpm infra:ecs`:
-1. `terraform apply` the `ecr` module → repository URI.
-2. `docker build --target runtime` → tag → `docker login` + `push` to floci ECR (`<account>.dkr.ecr.us-east-1.localhost:4566/keyloop-api`).
-3. `terraform apply` `network` + `ecs-service` with the image tag. The task definition gets `DB_SECRET_ID` as an env var and the secret ARN via the execution role, the same as real AWS.
-4. floci runs the task as a real container; the API is reachable via the ALB (or published awsvpc port).
+`pnpm infra:ecs` runs the API the way it would run in AWS: an image in ECR, an ECS Fargate service in private
+subnets, behind an ALB. It needs only Docker or Podman (on Podman, prefix `DOCKER_BUILDKIT=0` as for Compose).
+Script: `scripts/infra/ecs.ts`; Terraform root: `infra/envs/local-ecs` (own state volume `tf-ecs-state`).
 
-What this proves: the image, task definition, IAM permissions for the secret, and env wiring are production-shaped. What it doesn't: real networking, scaling or IAM enforcement. Say so in the design notes.
+1. **Data layer:** `docker compose up -d floci otel-lgtm`, then the `migrate` job. Through its dependencies this
+   applies `envs/local` (RDS + DB secrets), then runs migrations and the seed. Idempotent.
+2. **ECR:** `terraform apply -target=module.ecr`. The repository must exist before the push.
+3. **Build:** `docker build --target runtime`, tagged `<git short sha>[-dirty]-<UTC timestamp>`, so every run is a new
+   task definition revision. The build is tagged both `keyloop-api:<tag>` and with its full ECR name, because floci
+   starts tasks through this engine and would otherwise try to pull over HTTPS from its plain-HTTP registry.
+4. **Push:** `docker save`, then [crane](https://github.com/google/go-containerregistry/tree/main/cmd/crane) in a
+   container on the Compose network pushes the tarball to floci ECR with `--insecure`. Same on every engine, and no
+   daemon `insecure-registries` setting.
+5. **Deploy:** `terraform apply` of `network` + `ecr` + `ecs-service` with `TF_VAR_image_tag`.
+6. **Wait:** polls `http://localhost:8080/health` through the ALB until `db` is `up` (3 min timeout), then prints the
+   URL, image, cluster/service and log group.
+
+`pnpm infra:ecs:down` destroys the ECS stack (`envs/local-ecs`) and leaves the data layer.
+
+| Local choice | Why |
+|---|---|
+| ALB listener on 8080, published on the `floci` service | floci opens listener ports inside its own container and can't bind below 1024. `aws-dev` uses 80 |
+| Separate root and state (`envs/local-ecs`) | The ECS stack can be created and destroyed without touching the data layer. Its provider looks up the account id, which security group rules need for a clean plan, and switching that on in `envs/local` would break existing states |
+| `AWS_ENDPOINT_URL` and dummy keys in the task environment | IAM isn't enforced on floci, so the task can't get credentials from its role. `aws-dev` passes none of these |
+| `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-lgtm:4318` | Tasks join the Compose network, so their traces, logs and metrics appear in the same Grafana |
+
+What this proves and what it can't: [design-notes.md](design-notes.md) › Running on ECS (M7).
 
 ## Rules
 - Pin Terraform and provider versions (`required_version`, `required_providers`). Commit `.terraform.lock.hcl`.

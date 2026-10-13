@@ -195,6 +195,42 @@ What this shows:
   API replicas (the DB constraint keeps correctness across instances), and splitting the hot-path reads.
   Traces in Tempo for the run show the time per SQL statement.
 
+## Running on ECS (M7)
+`pnpm infra:ecs` deploys the API the way it would run in AWS, on [floci](https://floci.io). Terraform creates:
+- ECR, and the image goes there;
+- a VPC with public and private subnets and chained security groups;
+- an ECS Fargate service in the private subnets, behind an ALB;
+- least-privilege IAM roles and a CloudWatch log group.
+
+`envs/aws-dev` wires the same modules for real AWS, with a NAT gateway and no floci settings. It is never applied
+here, but it validates and plans cleanly. How it runs: [infrastructure.md](infrastructure.md) › M7.
+
+**What the floci run proves:**
+- **The image is production-ready.** The `runtime` image starts with nothing but its environment, reads its DB
+  credentials from Secrets Manager by ARN, connects to RDS, and passes the same health check in ECS as in Compose.
+- **The Terraform is real.** The AWS provider created all 34 resources against floci's APIs, and a re-plan showed no
+  changes. It surfaced two provider details a plain `validate` would not:
+  - security group references read back account-qualified unless the provider knows its account id;
+  - the ALB waiter takes about a minute.
+- **The wiring works end to end.** A booking through the ALB reached a task in a private subnet, which wrote to RDS.
+  Its logs reached CloudWatch Logs, and its traces reached Grafana.
+- **Deploys roll.** Each run pushes a uniquely tagged image and creates a new task definition revision, and ECS
+  replaces the running task. The deployment circuit breaker is configured, so failures roll back on AWS.
+
+**What floci can't prove**, and what to check on real AWS before relying on it:
+
+| Area | On floci | On AWS |
+|---|---|---|
+| IAM | Roles and policies are created but **not enforced**. The local task even uses dummy keys | The task role must really be allowed to read only its secret; test that a second secret is denied |
+| Networking | Tasks join the Compose network; security group rules and route tables aren't enforced (not tested). ECS reports an emulated VPC IP, not the container's | Private subnets, the NAT route, and SG chaining internet → ALB → tasks → RDS decide what's reachable |
+| Image pull | floci starts tasks through the local engine, from the locally tagged image; nothing is pulled from ECR | Tasks pull from ECR through the NAT gateway (or VPC endpoints), using the execution role |
+| Load balancing | Real HTTP forwarding, but target health stays `unhealthy` while serving, and the listener can't use port 80 | Health checks gate traffic; port 80 (and 443 with an ACM certificate) |
+| Deployments | The old task stops before the new one is healthy: about 10 s of 503 per redeploy | Rolling deploy keeps 100% healthy capacity; the circuit breaker rolls back failures |
+| Scaling and resilience | One task, one machine | Tasks spread over two AZs; auto scaling isn't configured yet |
+
+In short: floci shows that the artifacts and the infrastructure code are correct and fit together. It can't show
+that the security boundaries hold, or how the service behaves under failure or load.
+
 ## What I'd do with more time
 Roughly in priority order; none of these is needed for the brief.
 
@@ -212,6 +248,10 @@ Roughly in priority order; none of these is needed for the brief.
    table for notifications or a CRM, without coupling the booking transaction to them.
 7. **Operational polish:**
    - name HTTP spans by route;
-   - verify the Datadog profile with a real key;
-   - add dashboards and alerts on rejection rate and conflict retries;
-   - deploy to ECS with the existing Terraform module plan (M7).
+   - add dashboards and alerts on rejection rate and conflict retries.
+8. **Real AWS deployment** of `envs/aws-dev`:
+   - a CD pipeline that pushes the image and applies with its git sha;
+   - HTTPS with an ACM certificate;
+   - auto scaling on CPU or request count;
+   - VPC endpoints instead of the NAT gateway to cut cost;
+   - checks for the gaps in the table above.

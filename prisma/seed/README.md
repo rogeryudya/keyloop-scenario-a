@@ -5,13 +5,23 @@
 ## Contents
 | Entity | Count | Notes |
 |---|---|---|
-| Dealerships | 3 | Bangkok (Asia/Bangkok, 08–18, 3 bays), Ho Chi Minh City (Asia/Ho_Chi_Minh, 08–17, 2 bays), Hanoi Express (Asia/Ho_Chi_Minh, 09–17, **1 bay**) |
-| Service bays | 6 | |
-| Service types | 7 | 30–180 min; global (not per dealership) |
-| Technicians | 9 | Qualifications deliberately uneven (see scenarios) |
-| Customers | 6 | 3 in Thailand, 3 in Vietnam |
-| Vehicles | 8 | Thai and Vietnamese plates, incl. two EVs (Tesla, VinFast) |
-| Demo appointments | 3 | Placed relative to "tomorrow", so the demo never goes stale |
+| Dealerships | 6 | **Scenario dealerships:** Bangkok (Asia/Bangkok, 08–18, 3 bays), Ho Chi Minh City (Asia/Ho_Chi_Minh, 08–17, 2 bays), Hanoi Express (Asia/Ho_Chi_Minh, 09–17, **1 bay**). **Extra dealerships:** Chiang Mai (Asia/Bangkok, 08:30–17:30, 2 bays), Da Nang (Asia/Ho_Chi_Minh, 07:30–16:30, 3 bays), Phuket Express (Asia/Bangkok, 10–19, 1 bay). All UTC+7 |
+| Service bays | 12 | |
+| Service types | 10 | 30–180 min; global (not per dealership). AIR_CONDITIONING, WHEEL_ALIGNMENT and PRE_PURCHASE_INSPECTION are only offered at the extra dealerships |
+| Technicians | 18 | Qualifications deliberately uneven (see scenarios) |
+| Customers | 16 | 8 in Thailand, 8 in Vietnam |
+| Vehicles | 22 | Thai and Vietnamese plates, incl. four EVs (Tesla, VinFast ×2, BYD) |
+| Demo appointments | 24 | Placed relative to "tomorrow", so the demo never goes stale. 3 drive the scenarios below; 21 fill the extra dealerships' calendars over the next 3 days (2 cancelled) |
+
+The scenario dealerships, their technicians and the first 6 customers are exactly what the scenarios below, the
+`test/http/` demo files and the load check (`docs/design-notes.md`) rely on. Add new data at the extra dealerships,
+or as new dealerships, so those stay true.
+
+**The busier calendar** (all relative to tomorrow, local time) gives availability realistic gaps:
+- **Chiang Mai:** 8 bookings over days 1–2 (one cancelled). Example: the first free oil change tomorrow is 10:00,
+  because its only oil-change technician is busy until 09:45 and both bays are taken around 09:45–10:00.
+- **Da Nang:** 9 bookings over days 1 and 3 (one cancelled), including a 3-hour transmission repair from opening.
+- **Phuket:** 4 bookings on its single bay, including back-to-back slots at 10:00 and 11:00.
 
 IDs are fixed UUIDs with a readable prefix per type, so demo requests and docs can reference them:
 

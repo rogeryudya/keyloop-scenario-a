@@ -82,7 +82,7 @@ LOG_LEVEL=debug
 - [docker-compose.md](docker-compose.md): dev vs full-stack mode, startup order, Dockerfile stages
 - [aws-emulation.md](aws-emulation.md): floci Compose config, provisioning, how the app resolves DB credentials
 - [../infrastructure.md](../infrastructure.md): Terraform modules and envs (local floci, real-AWS shape), ECS stretch goal
-- [observability.md](observability.md): OpenTelemetry locally, Datadog option, what to look at
+- [observability.md](observability.md): OpenTelemetry locally, production backends, what to look at
 - [../testing/README.md](../testing/README.md): how tests use (and don't use) this environment
 
 ## Troubleshooting
