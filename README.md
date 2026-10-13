@@ -19,7 +19,7 @@ vehicle, technician and bay.
 
 **Contents:** [What you need](#what-you-need) · [Start it](#1-start-it) · [Try it](#2-try-it) ·
 [See it in Grafana](#3-see-what-happened-in-grafana) · [15-minute tour](#a-15-minute-tour-for-reviewers) ·
-[How it works](#how-it-works) · [Where the code is](#where-the-code-is) · [Run the tests](#run-the-tests) ·
+[How it works](#how-it-works) · [Diagrams](#diagrams) · [Where the code is](#where-the-code-is) · [Run the tests](#run-the-tests) ·
 [Extras](#extras) · [All docs](#all-docs)
 
 ## What you need
@@ -170,6 +170,43 @@ Postgres exclusion constraint: no two confirmed bookings may overlap on the same
 
 The full story, with trade-offs: [docs/design-notes.md](docs/design-notes.md).
 
+## Diagrams
+The same system in four pictures. They follow your GitHub light or dark theme.
+**[Open the interactive version](https://rogeryudya.github.io/keyloop-scenario-a/diagrams/blueprints.html)**, with
+tabs, copyable text and the detail tables, or open [docs/diagrams/blueprints.html](docs/diagrams/blueprints.html) from
+your clone in a browser.
+
+**What happens to a booking request:** six checkpoints, each with its own way out, and the retry when two requests race.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/request-pipeline-dark.png">
+  <img alt="Booking pipeline: validate, known key, references exist, business rules, allocate, insert and commit, then 201. Exits: 400, a 201 replay or 422 for a reused key, 404, 422, 422 or 409, a retry loop on a lost race, then 409, and 500 for anything unexpected." src="docs/diagrams/request-pipeline-light.png">
+</picture>
+
+**The happy path, call by call:** the shaded steps run in one database transaction.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/happy-path-sequence-dark.png">
+  <img alt="Sequence of a successful booking: client to API, API to the CreateAppointment handler, handler to Postgres inside one transaction, the 201 back to the client, and telemetry to Grafana." src="docs/diagrams/happy-path-sequence-light.png">
+</picture>
+
+**The data model:** all 8 tables. The dashed arrows are composite foreign keys; with the two exclusion constraints,
+the database itself refuses an invalid booking.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/data-model-dark.png">
+  <img alt="Entity relationship diagram of dealerships, service_bays, technicians, technician_qualifications, service_types, customers, vehicles and appointments, with the composite foreign keys and the exclusion constraints that prevent double-booking." src="docs/diagrams/data-model-light.png">
+</picture>
+
+**What runs where, and on which port:** the API, Grafana and floci (the local AWS) on one Docker network.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/tech-stack-dark.png">
+  <img alt="Topology: the browser reaches the API on 3000, Grafana on 3001 and the floci console on 4566. The API reads its DB secret from floci on 4566, sends SQL to the RDS proxy on 7001 and telemetry to otel-lgtm on 4318. Terraform bootstrap and migrate run once before the API." src="docs/diagrams/tech-stack-light.png">
+</picture>
+
+To redraw them after changing `docs/diagrams/blueprints.html`: `pnpm docs:diagrams`, which renders the PNGs in Docker.
+
 ## Where the code is
 Each feature module has the same four layers: `domain` (business rules, plain TypeScript), `application` (use
 cases), `infrastructure` (database) and `presentation` (HTTP). Dependencies only point inward, towards `domain`,
@@ -234,6 +271,7 @@ Project rules for contributors and AI assistants: [CLAUDE.md](CLAUDE.md).
 |---|---|
 | Read the original brief, the business rules and the assumptions I made | [docs/requirements.md](docs/requirements.md) |
 | Understand the design, the trade-offs and what's next | [docs/design-notes.md](docs/design-notes.md) |
+| See the data model, request flow and stack as diagrams | [Diagrams](#diagrams), or the [interactive page](https://rogeryudya.github.io/keyloop-scenario-a/diagrams/blueprints.html) |
 | See every endpoint and error code | [docs/api.md](docs/api.md), or Swagger at `/docs` |
 | Understand the architecture and its layer rules | [docs/architecture/](docs/architecture/README.md) |
 | See why each big decision was made (ADRs) | [docs/decisions/](docs/decisions/) |
